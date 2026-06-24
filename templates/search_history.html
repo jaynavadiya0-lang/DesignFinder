@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search History</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body{ background:#f5f7fb; }
+        .main-card{ border:0; border-radius:18px; }
+        .thumb{
+            width:100%;
+            height:150px;
+            object-fit:cover;
+            border-radius:12px;
+            background:#eee;
+        }
+        .nav-btn{ border-radius:12px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-white shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">🎨 Design Finder</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="/" class="btn btn-outline-primary btn-sm nav-btn">Home</a>
+            <a href="/gallery" class="btn btn-outline-primary btn-sm nav-btn">Gallery</a>
+            <a href="/dashboard" class="btn btn-outline-primary btn-sm nav-btn">Dashboard</a>
+            <a href="/search-history" class="btn btn-primary btn-sm nav-btn">Search History</a>
+            <a href="/compare" class="btn btn-outline-primary btn-sm nav-btn">Compare</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">Search Result History</h2>
+        <a href="/delete-history" class="btn btn-danger" onclick="return confirm('Delete all search history?')">Delete History</a>
+    </div>
+
+    {% if history and history|length > 0 %}
+        {% for item in history %}
+        <div class="card main-card shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+                    <h5 class="fw-bold mb-0">Query Image: {{ item.query_image }}</h5>
+                    <div class="text-muted">{{ item.timestamp }}</div>
+                </div>
+
+                <div class="row g-4">
+                    {% for r in item.results %}
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <img src="/database/{{ r.filename }}" class="thumb mb-3" alt="{{ r.filename }}">
+                                <h6 class="fw-bold">{{ r.design_id }}</h6>
+                                <p class="mb-1"><strong>Match:</strong> {{ r.score }}%</p>
+                                {% if r.fabric %}<p class="mb-1"><strong>Fabric:</strong> {{ r.fabric }}</p>{% endif %}
+                                {% if r.work_type %}<p class="mb-1"><strong>Work:</strong> {{ r.work_type }}</p>{% endif %}
+                                <a href="/design/{{ r.filename }}" class="btn btn-primary btn-sm mt-2">View</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">No search history found.</div>
+    {% endif %}
+</div>
+
+</body>
+</html>

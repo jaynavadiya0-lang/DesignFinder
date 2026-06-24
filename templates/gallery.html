@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery - Design Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body{ background:#f5f7fb; }
+        .main-card{ border:0; border-radius:18px; }
+        .design-card{ border:0; border-radius:16px; overflow:hidden; }
+        .thumb{ width:100%; height:230px; object-fit:cover; background:#eee; }
+        .nav-btn{ border-radius:12px; }
+        .pill{
+            display:inline-block;
+            padding:5px 10px;
+            border-radius:999px;
+            background:#eef3ff;
+            font-size:13px;
+            margin:2px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg bg-white shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">🎨 Design Finder</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="/" class="btn btn-outline-primary btn-sm nav-btn">Home</a>
+            <a href="/gallery" class="btn btn-primary btn-sm nav-btn">Gallery</a>
+            <a href="/dashboard" class="btn btn-outline-primary btn-sm nav-btn">Dashboard</a>
+            <a href="/search-history" class="btn btn-outline-primary btn-sm nav-btn">Search History</a>
+            <a href="/compare" class="btn btn-outline-primary btn-sm nav-btn">Compare</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="card main-card shadow-sm mb-4">
+        <div class="card-body p-4">
+            <h3 class="mb-3">Gallery Filter</h3>
+
+            <form method="GET" action="/gallery">
+                <div class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label">Design ID</label>
+                        <input type="text" name="design_id" class="form-control" value="{{ filter_design_id }}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Fabric</label>
+                        <select name="fabric" class="form-select">
+                            <option value="">All</option>
+                            {% for item in fabric_options %}
+                                <option value="{{ item }}" {% if filter_fabric == item %}selected{% endif %}>{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Work Type</label>
+                        <select name="work_type" class="form-select">
+                            <option value="">All</option>
+                            {% for item in work_type_options %}
+                                <option value="{{ item }}" {% if filter_work_type == item %}selected{% endif %}>{{ item }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Color</label>
+                        <input type="text" name="color" class="form-control" value="{{ filter_color }}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Occasion</label>
+                        <input type="text" name="occasion" class="form-control" value="{{ filter_occasion }}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Sort</label>
+                        <select name="sort_by" class="form-select">
+                            <option value="newest" {% if sort_by == "newest" %}selected{% endif %}>Newest</option>
+                            <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest</option>
+                            <option value="id_asc" {% if sort_by == "id_asc" %}selected{% endif %}>ID A-Z</option>
+                            <option value="id_desc" {% if sort_by == "id_desc" %}selected{% endif %}>ID Z-A</option>
+                            <option value="fabric_asc" {% if sort_by == "fabric_asc" %}selected{% endif %}>Fabric</option>
+                            <option value="color_asc" {% if sort_by == "color_asc" %}selected{% endif %}>Color</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary">Apply Filter</button>
+                    <a href="/gallery" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">All Designs</h3>
+        <div class="text-muted">Total: {{ designs|length }}</div>
+    </div>
+
+    <div class="row g-4">
+        {% for item in designs %}
+        <div class="col-md-4 col-lg-3">
+            <div class="card design-card shadow-sm h-100">
+                <img src="/database/{{ item.filename }}" class="thumb" alt="{{ item.filename }}">
+
+                <div class="card-body">
+                    <h5 class="fw-bold mb-2">{{ item.design_id }}</h5>
+
+                    {% if item.fabric %}
+                        <div class="pill">{{ item.fabric }}</div>
+                    {% endif %}
+                    {% if item.work_type %}
+                        <div class="pill">{{ item.work_type }}</div>
+                    {% endif %}
+                    {% if item.color %}
+                        <div class="pill">{{ item.color }}</div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        {% if item.occasion %}
+                            <p class="mb-1"><strong>Occasion:</strong> {{ item.occasion }}</p>
+                        {% endif %}
+                        {% if item.notes %}
+                            <p class="mb-1"><strong>Notes:</strong> {{ item.notes }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-3 d-flex flex-wrap gap-2">
+                        <a href="/design/{{ item.filename }}" class="btn btn-primary btn-sm">View</a>
+                        <a href="/edit/{{ item.filename }}" class="btn btn-warning btn-sm">Edit</a>
+                        <a href="/delete/{{ item.filename }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this design?')">Delete</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">No designs found.</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+</body>
+</html>

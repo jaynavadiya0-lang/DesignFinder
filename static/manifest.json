@@ -1,0 +1,9 @@
+{
+  "name": "Design Finder",
+  "short_name": "DesignFinder",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0d6efd",
+  "icons": []
+}
