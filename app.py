@@ -379,15 +379,17 @@ def build_patch_features(img):
 # MATCH SCORING
 # -------------------------------------------------
 def knn_good_match_score(des1, kp1, des2, kp2, matcher, ratio=0.75):
+   try:
     if des1 is None or des2 is None:
         return 0
+
     if len(des1) < 2 or len(des2) < 2:
         return 0
 
-    try:
-        matches = matcher.knnMatch(des1, des2, k=2)
-    except Exception:
-        return 0
+    matches = matcher.knnMatch(des1, des2, k=2)
+
+except Exception:
+    return 0
 
     good = []
     for m_n in matches:
