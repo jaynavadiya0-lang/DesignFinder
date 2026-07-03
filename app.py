@@ -161,8 +161,6 @@ assign_ids_to_old_images()
     history.insert(0, item)
     history = history[:100]
     save_search_history(history)
-    add_search_history(query_image, results)
-
 # -------------------------------------------------
 # FILE / UPLOAD HELPERS
 # -------------------------------------------------
