@@ -147,21 +147,6 @@ def assign_ids_to_old_images():
 assign_ids_to_old_images()
 
 # -------------------------------------------------
-# SEARCH HISTORY HELPERS
-# -------------------------------------------------
- def add_search_history(query_image, results):
-    history = load_search_history()
-
-    item = {
-        "timestamp": datetime.now().strftime("%d-%m-%Y %I:%M %p"),
-        "query_image": query_image,
-        "results": results[:3]
-    }
-
-    history.insert(0, item)
-    history = history[:100]
-    save_search_history(history)
-# -------------------------------------------------
 # FILE / UPLOAD HELPERS
 # -------------------------------------------------
 def get_unique_filename(original_name):
