@@ -436,7 +436,8 @@ def compare_single_feature_patch(f1, f2):
             bf_akaze,
             ratio=0.78
         )
-
+         akaze_score = 0
+        
     hist_score = hist_similarity_score(
         f1["hist"],
         f2["hist"]
