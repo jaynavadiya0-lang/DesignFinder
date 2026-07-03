@@ -373,6 +373,11 @@ def knn_good_match_score(des1, kp1, des2, kp2, matcher, ratio=0.75):
         return 0
 
     try:
+        if des1 is None or des2 is None:
+    return 0
+
+if len(des1) < 2 or len(des2) < 2:
+    return 0
         matches = matcher.knnMatch(des1, des2, k=2)
     except Exception:
         return 0
@@ -427,6 +432,12 @@ def compare_single_feature_patch(f1, f2):
     ):
         akaze_score = 0
     else:
+        if (
+    f1["akaze_des"] is None or
+    f2["akaze_des"] is None
+):
+    akaze_score = 0
+else:
         akaze_score = knn_good_match_score(
             f1["akaze_des"], f1["akaze_kp"],
             f2["akaze_des"], f2["akaze_kp"],
