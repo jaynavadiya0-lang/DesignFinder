@@ -316,9 +316,10 @@ def build_patch_features(img):
     patches = get_main_patches(img)
 
     h, w = img.shape[:2]
-    center = img[int(h * 0.12):int(h * 0.88), int(w * 0.12):int(w * 0.88)]
-    if center is not None and center.size > 0:
-patches.extend(get_tiles(center, 2, 2))
+   center = img[int(h * 0.12):int(h * 0.88), int(w * 0.12):int(w * 0.88)]
+
+if center is not None and center.size > 0:
+    patches.extend(get_tiles(center, 2, 2))
     features = []
 
     for patch in patches:
