@@ -417,23 +417,32 @@ def compare_single_feature_patch(f1, f2):
     orb_score = knn_good_match_score(
         f1["orb_des"], f1["orb_kp"],
         f2["orb_des"], f2["orb_kp"],
-        bf_orb, ratio=0.78
-    )
-if (
-    f1["akaze_des"] is None or
-    f2["akaze_des"] is None
-):
-    akaze_score = 0
-else:
-        akaze_score = knn_good_match_score(
-        f1["akaze_des"], f1["akaze_kp"],
-        f2["akaze_des"], f2["akaze_kp"],
-        bf_akaze,
+        bf_orb,
         ratio=0.78
     )
-    
-    hist_score = hist_similarity_score(f1["hist"], f2["hist"])
-    edge_score = edge_similarity_score(f1["edges"], f2["edges"])
+
+    if (
+        f1["akaze_des"] is None or
+        f2["akaze_des"] is None
+    ):
+        akaze_score = 0
+    else:
+        akaze_score = knn_good_match_score(
+            f1["akaze_des"], f1["akaze_kp"],
+            f2["akaze_des"], f2["akaze_kp"],
+            bf_akaze,
+            ratio=0.78
+        )
+
+    hist_score = hist_similarity_score(
+        f1["hist"],
+        f2["hist"]
+    )
+
+    edge_score = edge_similarity_score(
+        f1["edges"],
+        f2["edges"]
+    )
 
     final = (
         orb_score * 0.38 +
@@ -441,8 +450,8 @@ else:
         hist_score * 0.15 +
         edge_score * 0.15
     )
-    return final
 
+    return final
 
 def compare_feature_sets(features1, features2):
     best_patch_scores = []
