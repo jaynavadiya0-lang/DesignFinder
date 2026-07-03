@@ -31,7 +31,7 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=2500)
+orb = cv2.ORB_create(nfeatures=1200)
 akaze = cv2.AKAZE_create()
 
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
@@ -332,15 +332,14 @@ def build_patch_features(img):
     h, w = img.shape[:2]
     center = img[int(h * 0.12):int(h * 0.88), int(w * 0.12):int(w * 0.88)]
     if center is not None and center.size > 0:
-        patches.extend(get_tiles(center, 3, 3))
-
+patches.extend(get_tiles(center, 2, 2))
     features = []
 
     for patch in patches:
         if patch is None or patch.size == 0:
             continue
 
-        patch = resize_for_matching(patch, max_side=450)
+        patch = resize_for_matching(patch, max_side=320)
         gray = get_gray(patch)
         edges = get_edges(gray)
 
