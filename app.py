@@ -16,7 +16,6 @@ TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
 
 METADATA_FILE = "design_metadata.json"
-SEARCH_HISTORY_FILE = "search_history.json"
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB
@@ -150,17 +149,6 @@ assign_ids_to_old_images()
 # -------------------------------------------------
 # SEARCH HISTORY HELPERS
 # -------------------------------------------------
-def load_search_history():
-    return load_json_file(SEARCH_HISTORY_FILE, [])
-
-
-def save_search_history(history):
-    save_json_file(SEARCH_HISTORY_FILE, history)
-
-
-def add_search_history(query_image, results):
-    history = load_search_history()
-
     item = {
         "timestamp": datetime.now().strftime("%d-%m-%Y %I:%M %p"),
         "query_image": query_image,
@@ -379,17 +367,15 @@ def build_patch_features(img):
 # MATCH SCORING
 # -------------------------------------------------
 def knn_good_match_score(des1, kp1, des2, kp2, matcher, ratio=0.75):
-   try:
     if des1 is None or des2 is None:
         return 0
-
     if len(des1) < 2 or len(des2) < 2:
         return 0
 
-    matches = matcher.knnMatch(des1, des2, k=2)
-
-except Exception:
-    return 0
+    try:
+        matches = matcher.knnMatch(des1, des2, k=2)
+    except Exception:
+        return 0
 
     good = []
     for m_n in matches:
@@ -439,12 +425,13 @@ if (
 ):
     akaze_score = 0
 else:
-    akaze_score = knn_good_match_score(
+        akaze_score = knn_good_match_score(
         f1["akaze_des"], f1["akaze_kp"],
         f2["akaze_des"], f2["akaze_kp"],
         bf_akaze,
         ratio=0.78
     )
+    
     hist_score = hist_similarity_score(f1["hist"], f2["hist"])
     edge_score = edge_similarity_score(f1["edges"], f2["edges"])
 
@@ -842,8 +829,6 @@ def home():
             similar_images.sort(key=lambda x: x["score"], reverse=True)
             similar_images = similar_images[:3]
 
-            add_search_history(image_name, similar_images)
-
         if not similar_images:
             message = "No similar design found."
 
@@ -940,71 +925,6 @@ def dashboard():
         total_work_types=data["total_work_types"],
         recent_designs=data["recent_designs"]
     )
-
-
-@app.route("/search-history")
-def search_history():
-    history = load_search_history()
-    return render_template("search_history.html", history=history)
-
-
-@app.route("/delete-history")
-def delete_history():
-    save_search_history([])
-    return redirect(url_for("search_history"))
-
-
-@app.route("/compare", methods=["GET", "POST"])
-def compare_designs():
-    metadata = load_metadata()
-    all_designs = get_all_design_items()
-
-    result = None
-    design1 = None
-    design2 = None
-
-    if request.method == "POST":
-        file1 = request.form.get("design1", "").strip()
-        file2 = request.form.get("design2", "").strip()
-
-        if file1 and file2 and file1 != file2:
-            path1 = os.path.join(DATABASE_FOLDER, file1)
-            path2 = os.path.join(DATABASE_FOLDER, file2)
-
-            if os.path.exists(path1) and os.path.exists(path2):
-                score = get_image_match_score(path1, path2)
-
-                d1 = metadata.get(file1, {})
-                d2 = metadata.get(file2, {})
-
-                design1 = {
-                    "filename": file1,
-                    "design_id": d1.get("design_id", "N/A"),
-                    "fabric": d1.get("fabric", ""),
-                    "work_type": d1.get("work_type", ""),
-                    "color": d1.get("color", ""),
-                    "occasion": d1.get("occasion", "")
-                }
-
-                design2 = {
-                    "filename": file2,
-                    "design_id": d2.get("design_id", "N/A"),
-                    "fabric": d2.get("fabric", ""),
-                    "work_type": d2.get("work_type", ""),
-                    "color": d2.get("color", ""),
-                    "occasion": d2.get("occasion", "")
-                }
-
-                result = round(score, 2)
-
-    return render_template(
-        "compare.html",
-        designs=all_designs,
-        result=result,
-        design1=design1,
-        design2=design2
-    )
-
 
 @app.route("/design/<filename>")
 def design_detail(filename):
@@ -1135,4 +1055,3 @@ def service_worker():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
