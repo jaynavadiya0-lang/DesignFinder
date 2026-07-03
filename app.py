@@ -374,6 +374,21 @@ def knn_good_match_score(des1, kp1, des2, kp2, matcher, ratio=0.75):
         return 0
 
     try:
+        # Safety checks
+if not isinstance(des1, np.ndarray) or not isinstance(des2, np.ndarray):
+    return 0
+
+if des1.dtype != np.uint8:
+    des1 = des1.astype(np.uint8)
+
+if des2.dtype != np.uint8:
+    des2 = des2.astype(np.uint8)
+
+if des1.ndim != 2 or des2.ndim != 2:
+    return 0
+
+if des1.shape[1] != des2.shape[1]:
+    return 0
         matches = matcher.knnMatch(des1, des2, k=2)
     except Exception:
         return 0
