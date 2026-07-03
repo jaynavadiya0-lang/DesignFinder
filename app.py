@@ -369,32 +369,32 @@ def build_patch_features(img):
 def knn_good_match_score(des1, kp1, des2, kp2, matcher, ratio=0.75):
     if des1 is None or des2 is None:
         return 0
+
     if len(des1) < 2 or len(des2) < 2:
         return 0
 
     try:
-        if des1 is None or des2 is None:
-    return 0
-
-if len(des1) < 2 or len(des2) < 2:
-    return 0
         matches = matcher.knnMatch(des1, des2, k=2)
     except Exception:
         return 0
 
     good = []
+
     for m_n in matches:
         if len(m_n) != 2:
             continue
+
         m, n = m_n
+
         if m.distance < ratio * n.distance:
             good.append(m)
 
     base = min(len(kp1), len(kp2))
+
     if base == 0:
         return 0
 
-    score = (len(good) / base) * 100
+    return (len(good) / base) * 100
     return score
 
 
@@ -419,6 +419,7 @@ def hist_similarity_score(hist1, hist2):
 
 
 def compare_single_feature_patch(f1, f2):
+
     orb_score = knn_good_match_score(
         f1["orb_des"], f1["orb_kp"],
         f2["orb_des"], f2["orb_kp"],
@@ -426,18 +427,9 @@ def compare_single_feature_patch(f1, f2):
         ratio=0.78
     )
 
-    if (
-        f1["akaze_des"] is None or
-        f2["akaze_des"] is None
-    ):
+    if f1["akaze_des"] is None or f2["akaze_des"] is None:
         akaze_score = 0
     else:
-        if (
-    f1["akaze_des"] is None or
-    f2["akaze_des"] is None
-):
-    akaze_score = 0
-else:
         akaze_score = knn_good_match_score(
             f1["akaze_des"], f1["akaze_kp"],
             f2["akaze_des"], f2["akaze_kp"],
