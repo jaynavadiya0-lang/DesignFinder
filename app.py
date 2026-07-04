@@ -768,15 +768,16 @@ def home():
 
             if duplicate_found:
                 message = f"This design already exists in database. Match: {duplicate_score}%"
+                
            else:
-    metadata = load_metadata()
-    design_id = get_next_design_id(metadata)
+                metadata = load_metadata()
+                design_id = get_next_design_id(metadata)
 
-    fabric = get_final_fabric_from_form()
-    work_type = get_final_work_type_from_form()
-    color = request.form.get("color", "").strip()
-    occasion = request.form.get("occasion", "").strip()
-    notes = request.form.get("notes", "").strip()
+                fabric = get_final_fabric_from_form()
+                work_type = get_final_work_type_from_form()
+                color = request.form.get("color", "").strip()
+                occasion = request.form.get("occasion", "").strip()
+                notes = request.form.get("notes", "").strip()
 
     try:
         result = cloudinary.uploader.upload(
