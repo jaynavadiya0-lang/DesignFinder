@@ -7,6 +7,10 @@ import numpy as np
 import json
 from collections import Counter
 from datetime import datetime
+import cloudinary
+import cloudinary.uploader
+
+from supabase import create_client
 
 app = Flask(__name__)
 
