@@ -15,14 +15,14 @@ from supabase import create_client
 app = Flask(__name__)
 
 cloudinary.config(
-    cloud_name=os.environ.get("dhdppz7gv"),
-    api_key=os.environ.get("213652744297862"),
-    api_secret=os.environ.get("k8sGbcJr1wqwSy3ImivWDcm5Ufs"),
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
     secure=True
 )
 
-SUPABASE_URL = os.environ.get("https://ukjkmurqpfnuovbyxtqq.supabase.co")
-SUPABASE_KEY = os.environ.get("sb_publishable_cEf61HHow8CMoxq8bn-3aQ_NmcfImhR")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_ANON_KEY")
 
 supabase = create_client(
     SUPABASE_URL,
