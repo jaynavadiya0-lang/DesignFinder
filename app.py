@@ -748,28 +748,32 @@ def home():
             )
 
         # ---------------- ADD TO DATABASE ----------------
-        if action == "add":
+              if action == "add":
             duplicate_found = False
             duplicate_score = 0
 
             if os.path.exists(DATABASE_FOLDER):
                 for db_image in os.listdir(DATABASE_FOLDER):
                     db_path = os.path.join(DATABASE_FOLDER, db_image)
+
                     if not os.path.isfile(db_path):
                         continue
+
                     try:
                         is_dup, score = is_duplicate_design(filepath, db_path)
+
                         if is_dup:
                             duplicate_found = True
                             duplicate_score = round(score, 2)
                             break
+
                     except Exception:
                         pass
 
             if duplicate_found:
                 message = f"This design already exists in database. Match: {duplicate_score}%"
-                
-           else:
+
+            else:
                 metadata = load_metadata()
                 design_id = get_next_design_id(metadata)
 
@@ -779,30 +783,30 @@ def home():
                 occasion = request.form.get("occasion", "").strip()
                 notes = request.form.get("notes", "").strip()
 
-    try:
-        result = cloudinary.uploader.upload(
-            filepath,
-            folder="DesignFinder"
-        )
+                try:
+                    result = cloudinary.uploader.upload(
+                        filepath,
+                        folder="DesignFinder"
+                    )
 
-        image_url = result["secure_url"]
-        public_id = result["public_id"]
+                    image_url = result["secure_url"]
+                    public_id = result["public_id"]
 
-        supabase.table("designs").insert({
-            "design_id": design_id,
-            "image_url": image_url,
-            "public_id": public_id,
-            "fabric": fabric,
-            "work_type": work_type,
-            "color": color,
-            "occasion": occasion,
-            "notes": notes
-        }).execute()
+                    supabase.table("designs").insert({
+                        "design_id": design_id,
+                        "image_url": image_url,
+                        "public_id": public_id,
+                        "fabric": fabric,
+                        "work_type": work_type,
+                        "color": color,
+                        "occasion": occasion,
+                        "notes": notes
+                    }).execute()
 
-        message = f"Design added successfully with Design ID: {design_id}"
+                    message = f"Design added successfully with Design ID: {design_id}"
 
-    except Exception as e:
-        message = f"Upload failed: {str(e)}"
+                except Exception as e:
+                    message = f"Upload failed: {str(e)}"
 
             return render_template(
                 "index.html",
