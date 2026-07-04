@@ -1,7 +1,7 @@
 Flask
 gunicorn
-opencv-python-headless
-numpy
+opencv-contrib-python-headless==4.10.0.84
+numpy==2.2.6
 Pillow
 cloudinary
 requests
