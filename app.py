@@ -768,43 +768,40 @@ def home():
 
             if duplicate_found:
                 message = f"This design already exists in database. Match: {duplicate_score}%"
-            else:
-                metadata = load_metadata()
-                design_id = get_next_design_id(metadata)
+           else:
+    metadata = load_metadata()
+    design_id = get_next_design_id(metadata)
 
-                fabric = get_final_fabric_from_form()
-                work_type = get_final_work_type_from_form()
-                color = request.form.get("color", "").strip()
-                occasion = request.form.get("occasion", "").strip()
-                notes = request.form.get("notes", "").strip()
+    fabric = get_final_fabric_from_form()
+    work_type = get_final_work_type_from_form()
+    color = request.form.get("color", "").strip()
+    occasion = request.form.get("occasion", "").strip()
+    notes = request.form.get("notes", "").strip()
 
-                db_save_name = saved_upload_name
-                db_save_path = os.path.join(DATABASE_FOLDER, db_save_name)
+    try:
+        result = cloudinary.uploader.upload(
+            filepath,
+            folder="DesignFinder"
+        )
 
-              try:
-    result = cloudinary.uploader.upload(
-        filepath,
-        folder="DesignFinder"
-    )
+        image_url = result["secure_url"]
+        public_id = result["public_id"]
 
-    image_url = result["secure_url"]
-    public_id = result["public_id"]
+        supabase.table("designs").insert({
+            "design_id": design_id,
+            "image_url": image_url,
+            "public_id": public_id,
+            "fabric": fabric,
+            "work_type": work_type,
+            "color": color,
+            "occasion": occasion,
+            "notes": notes
+        }).execute()
 
-    supabase.table("designs").insert({
-        "design_id": design_id,
-        "image_url": image_url,
-        "public_id": public_id,
-        "fabric": fabric,
-        "work_type": work_type,
-        "color": color,
-        "occasion": occasion,
-        "notes": notes
-    }).execute()
+        message = f"Design added successfully with Design ID: {design_id}"
 
-    message = f"Design added successfully with Design ID: {design_id}"
-
-except Exception as e:
-    message = f"Upload failed: {e}"
+    except Exception as e:
+        message = f"Upload failed: {str(e)}"
 
             return render_template(
                 "index.html",
