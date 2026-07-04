@@ -782,32 +782,13 @@ def home():
                 db_save_path = os.path.join(DATABASE_FOLDER, db_save_name)
 
                 try:
-                    with open(filepath, "rb") as src, open(db_save_path, "wb") as dst:
-                        dst.write(src.read())
-                except Exception:
-                    message = "Unable to save design in database."
-                    return render_template(
-                        "index.html",
-                        image_name=None,
-                        image_size=None,
-                        dominant_color=None,
-                        color_name=None,
-                        combination=None,
-                        similar_images=[],
-                        message=message,
-                        fabric_options=FABRIC_OPTIONS,
-                        work_type_options=WORK_TYPE_OPTIONS
-                    )
-
-                metadata[db_save_name] = {
-                    "design_id": design_id,
-                    "fabric": fabric,
-                    "work_type": work_type,
-                    "color": color,
-                    "occasion": occasion,
-                    "notes": notes
-                }
-                save_metadata(metadata)
+                   result = cloudinary.uploader.upload(
+                       filepath,
+                       folder="DesignFinder"
+                   )  
+                    
+                   image_url = result["secure_url"]
+                   public_id = result["public_id"]
 
                 message = f"Design added successfully with Design ID: {design_id}"
 
