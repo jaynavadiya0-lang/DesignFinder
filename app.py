@@ -748,79 +748,90 @@ def home():
             )
 
         # ---------------- ADD TO DATABASE ----------------
-            if action == "add":
-            duplicate_found = False
-            duplicate_score = 0
+if action == "add":
 
-            if os.path.exists(DATABASE_FOLDER):
-                for db_image in os.listdir(DATABASE_FOLDER):
-                    db_path = os.path.join(DATABASE_FOLDER, db_image)
+    fabric = get_final_fabric_from_form()
+    work_type = get_final_work_type_from_form()
+    color = request.form.get("color", "").strip()
+    occasion = request.form.get("occasion", "").strip()
+    notes = request.form.get("notes", "").strip()
 
-                    if not os.path.isfile(db_path):
-                        continue
+    try:
+        # ----------------------------------------
+        # Upload image to Cloudinary
+        # ----------------------------------------
+        upload_result = cloudinary.uploader.upload(
+            filepath,
+            folder="DesignFinder"
+        )
 
-                    try:
-                        is_dup, score = is_duplicate_design(filepath, db_path)
+        image_url = upload_result["secure_url"]
+        public_id = upload_result["public_id"]
 
-                        if is_dup:
-                            duplicate_found = True
-                            duplicate_score = round(score, 2)
-                            break
+        # ----------------------------------------
+        # Generate Design ID
+        # ----------------------------------------
+        count = supabase.table("designs").select("id", count="exact").execute()
 
-                    except Exception:
-                        pass
+        total = count.count if count.count else 0
+        design_id = f"D{total + 1:05d}"
 
-            if duplicate_found:
-                message = f"This design already exists in database. Match: {duplicate_score}%"
+        # ----------------------------------------
+        # Duplicate Check
+        # ----------------------------------------
+        duplicate = (
+            supabase.table("designs")
+            .select("id")
+            .eq("public_id", public_id)
+            .execute()
+        )
 
-            else:
-                metadata = load_metadata()
-                design_id = get_next_design_id(metadata)
+        if duplicate.data:
+            message = "This design already exists."
 
-                fabric = get_final_fabric_from_form()
-                work_type = get_final_work_type_from_form()
-                color = request.form.get("color", "").strip()
-                occasion = request.form.get("occasion", "").strip()
-                notes = request.form.get("notes", "").strip()
+        else:
 
-                try:
-                    result = cloudinary.uploader.upload(
-                        filepath,
-                        folder="DesignFinder"
-                    )
+            # ----------------------------------------
+            # Save into Supabase
+            # ----------------------------------------
+            supabase.table("designs").insert({
 
-                    image_url = result["secure_url"]
-                    public_id = result["public_id"]
+                "design_id": design_id,
+                "image_url": image_url,
+                "public_id": public_id,
 
-                    supabase.table("designs").insert({
-                        "design_id": design_id,
-                        "image_url": image_url,
-                        "public_id": public_id,
-                        "fabric": fabric,
-                        "work_type": work_type,
-                        "color": color,
-                        "occasion": occasion,
-                        "notes": notes
-                    }).execute()
+                "fabric": fabric,
+                "work_type": work_type,
+                "color": color,
+                "occasion": occasion,
+                "notes": notes
 
-                    message = f"Design added successfully with Design ID: {design_id}"
+            }).execute()
 
-                except Exception as e:
-                    message = f"Upload failed: {str(e)}"
+            message = f"Design Added Successfully. ID : {design_id}"
 
-            return render_template(
-                "index.html",
-                message=message,
-                image_name=None,
-                image_size=None,
-                dominant_color=None,
-                color_name=None,
-                combination=None,
-                similar_images=[],
-                fabric_options=FABRIC_OPTIONS,
-                work_type_options=WORK_TYPE_OPTIONS
-            )
+    except Exception as e:
 
+        message = f"Upload Failed : {str(e)}"
+
+    return render_template(
+
+        "index.html",
+
+        message=message,
+
+        image_name=None,
+        image_size=None,
+        dominant_color=None,
+        color_name=None,
+        combination=None,
+
+        similar_images=[],
+
+        fabric_options=FABRIC_OPTIONS,
+        work_type_options=WORK_TYPE_OPTIONS
+
+    )
         # ---------------- SEARCH SIMILAR ----------------
         image_name = saved_upload_name
 
@@ -841,8 +852,6 @@ def home():
             dominant_color = None
             color_name = None
             combination = None
-
-        metadata = load_metadata()
 
         if os.path.exists(DATABASE_FOLDER):
             for db_image in os.listdir(DATABASE_FOLDER):
@@ -1033,8 +1042,7 @@ def edit_design(filename):
         metadata[filename]["color"] = request.form.get("color", "").strip()
         metadata[filename]["occasion"] = request.form.get("occasion", "").strip()
         metadata[filename]["notes"] = request.form.get("notes", "").strip()
-
-        save_metadata(metadata)
+        
         return redirect(url_for("gallery"))
 
     details = metadata.get(filename, {})
