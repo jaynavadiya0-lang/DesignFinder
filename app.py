@@ -748,7 +748,7 @@ def home():
             )
 
         # ---------------- ADD TO DATABASE ----------------
-              if action == "add":
+            if action == "add":
             duplicate_found = False
             duplicate_score = 0
 
