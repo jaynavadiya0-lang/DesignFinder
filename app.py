@@ -748,19 +748,19 @@ def home():
             )
 
         # ---------------- ADD TO DATABASE ----------------
-if action == "add":
+        if action == "add":
 
-    fabric = get_final_fabric_from_form()
-    work_type = get_final_work_type_from_form()
-    color = request.form.get("color", "").strip()
-    occasion = request.form.get("occasion", "").strip()
-    notes = request.form.get("notes", "").strip()
+            fabric = get_final_fabric_from_form()
+            work_type = get_final_work_type_from_form()
+            color = request.form.get("color", "").strip()
+            occasion = request.form.get("occasion", "").strip()
+            notes = request.form.get("notes", "").strip()
 
-    try:
+                try:
         # ----------------------------------------
         # Upload image to Cloudinary
         # ----------------------------------------
-        upload_result = cloudinary.uploader.upload(
+                        upload_result = cloudinary.uploader.upload(
             filepath,
             folder="DesignFinder"
         )
@@ -833,56 +833,7 @@ if action == "add":
 
     )
         # ---------------- SEARCH SIMILAR ----------------
-        image_name = saved_upload_name
-
-        try:
-            pil_img = Image.open(filepath).convert("RGB")
-            image_size = pil_img.size
-
-            small_img = pil_img.resize((100, 100))
-            colors = small_img.getcolors(10000)
-
-            if colors:
-                colors = sorted(colors, reverse=True)
-                dominant_color = colors[0][1]
-                color_name = get_color_name(dominant_color)
-                combination = suggest_combination(color_name)
-        except Exception:
-            image_size = None
-            dominant_color = None
-            color_name = None
-            combination = None
-
-        if os.path.exists(DATABASE_FOLDER):
-            for db_image in os.listdir(DATABASE_FOLDER):
-                db_path = os.path.join(DATABASE_FOLDER, db_image)
-
-                if not os.path.isfile(db_path):
-                    continue
-
-                try:
-                    score = get_image_match_score(filepath, db_path)
-                    details = metadata.get(db_image, {})
-
-                    similar_images.append({
-                        "filename": db_image,
-                        "score": round(score, 2),
-                        "design_id": details.get("design_id", "N/A"),
-                        "fabric": details.get("fabric", ""),
-                        "work_type": details.get("work_type", ""),
-                        "color": details.get("color", ""),
-                        "occasion": details.get("occasion", ""),
-                        "notes": details.get("notes", "")
-                    })
-                except Exception:
-                    pass
-
-            similar_images.sort(key=lambda x: x["score"], reverse=True)
-            similar_images = similar_images[:3]
-
-        if not similar_images:
-            message = "No similar design found."
-
+        
     return render_template(
         "index.html",
         image_name=image_name,
