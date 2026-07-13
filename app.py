@@ -752,87 +752,113 @@ def home():
 
             fabric = get_final_fabric_from_form()
             work_type = get_final_work_type_from_form()
+            stitch = request.form.get("stitch", "").strip()
+            manual_design_id = request.form.get("design_id", "").strip()
             color = request.form.get("color", "").strip()
             occasion = request.form.get("occasion", "").strip()
             notes = request.form.get("notes", "").strip()
 
-                try:
-        # ----------------------------------------
-        # Upload image to Cloudinary
-        # ----------------------------------------
-                        upload_result = cloudinary.uploader.upload(
-            filepath,
-            folder="DesignFinder"
-        )
+            design_id = request.form.get("design_id", "").strip()
 
-        image_url = upload_result["secure_url"]
-        public_id = upload_result["public_id"]
+            try:
 
-        # ----------------------------------------
-        # Generate Design ID
-        # ----------------------------------------
-        count = supabase.table("designs").select("id", count="exact").execute()
+                # ----------------------------
+                # Manual / Auto Design ID
+                # ----------------------------
+                if design_id == "":
 
-        total = count.count if count.count else 0
-        design_id = f"D{total + 1:05d}"
+                    result = (
+                        supabase.table("designs")
+                        .select("id", count="exact")
+                        .execute()
+                    )
 
-        # ----------------------------------------
-        # Duplicate Check
-        # ----------------------------------------
-        duplicate = (
-            supabase.table("designs")
-            .select("id")
-            .eq("public_id", public_id)
-            .execute()
-        )
+                    total = result.count if result.count else 0
 
-        if duplicate.data:
-            message = "This design already exists."
+                    design_id = f"D{total + 1:05d}"
 
-        else:
+                # ----------------------------
+                # Check Duplicate Design ID
+                # ----------------------------
+                duplicate = (
+                    supabase.table("designs")
+                    .select("id")
+                    .eq("design_id", design_id)
+                    .execute()
+                )
 
-            # ----------------------------------------
-            # Save into Supabase
-            # ----------------------------------------
-            supabase.table("designs").insert({
+                if duplicate.data:
 
-                "design_id": design_id,
-                "image_url": image_url,
-                "public_id": public_id,
+                    message = f"Design ID {design_id} already exists."
 
-                "fabric": fabric,
-                "work_type": work_type,
-                "color": color,
-                "occasion": occasion,
-                "notes": notes
+                else:
 
-            }).execute()
+                    # ----------------------------
+                    # Upload Image
+                    # ----------------------------
+                    upload_result = cloudinary.uploader.upload(
+                        filepath,
+                        folder="DesignFinder"
+                    )
 
-            message = f"Design Added Successfully. ID : {design_id}"
+                    image_url = upload_result["secure_url"]
+                    public_id = upload_result["public_id"]
 
-    except Exception as e:
+                    # ----------------------------
+                    # Save to Supabase
+                    # ----------------------------
+                    supabase.table("designs").insert({
 
-        message = f"Upload Failed : {str(e)}"
+                        "design_id": design_id,
+                        "filename": saved_upload_name,
+                        "image_url": image_url,
+                        "public_id": public_id,
+                        "fabric": fabric,
+                        "work_type": work_type,
+                        "stitch": stitch,
+                        "color": color,
+                        "occasion": occasion,
+                        "notes": notes
 
-    return render_template(
+                    }).execute()
 
-        "index.html",
+                    message = f"Design {design_id} added successfully."
 
-        message=message,
+            except Exception as e:
 
-        image_name=None,
-        image_size=None,
-        dominant_color=None,
-        color_name=None,
-        combination=None,
+                message = f"Upload failed : {str(e)}"
 
-        similar_images=[],
+            return render_template(
 
-        fabric_options=FABRIC_OPTIONS,
-        work_type_options=WORK_TYPE_OPTIONS
+                "index.html",
 
+                image_name=None,
+                image_size=None,
+                dominant_color=None,
+                color_name=None,
+                combination=None,
+                similar_images=[],
+
+                message=message,
+
+                fabric_options=FABRIC_OPTIONS,
+                work_type_options=WORK_TYPE_OPTIONS
+
+            )
+          design_id = manual_design_id
+
+else:
+
+    count = (
+        supabase.table("designs")
+        .select("id", count="exact")
+        .execute()
     )
-        # ---------------- SEARCH SIMILAR ----------------
+
+    total = count.count if count.count else 0
+
+    design_id = f"D{total + 1:05d}"
+    # ---------------- SEARCH SIMILAR ----------------
         
     return render_template(
         "index.html",
@@ -850,82 +876,80 @@ def home():
 
 @app.route("/gallery")
 def gallery():
-    assign_ids_to_old_images()
-    metadata = load_metadata()
-    designs = []
 
-    filter_design_id = request.args.get("design_id", "").strip()
-    filter_fabric = request.args.get("fabric", "").strip()
-    filter_work_type = request.args.get("work_type", "").strip()
-    filter_color = request.args.get("color", "").strip()
-    filter_occasion = request.args.get("occasion", "").strip()
-    sort_by = request.args.get("sort_by", "newest").strip()
+    try:
 
-    if os.path.exists(DATABASE_FOLDER):
-        for filename in os.listdir(DATABASE_FOLDER):
-            file_path = os.path.join(DATABASE_FOLDER, filename)
+        response = (
+            supabase.table("designs")
+            .select("*")
+            .order("id", desc=True)
+            .execute()
+        )
 
-            if os.path.isfile(file_path):
-                details = metadata.get(filename, {})
-                item = {
-                    "filename": filename,
-                    "design_id": details.get("design_id", "N/A"),
-                    "fabric": details.get("fabric", ""),
-                    "work_type": details.get("work_type", ""),
-                    "color": details.get("color", ""),
-                    "occasion": details.get("occasion", ""),
-                    "notes": details.get("notes", ""),
-                    "created_time": os.path.getmtime(file_path)
-                }
+        designs = response.data if response.data else []
 
-                if filter_design_id and filter_design_id.lower() not in item["design_id"].lower():
-                    continue
-                if filter_fabric and filter_fabric.lower() != item["fabric"].lower():
-                    continue
-                if filter_work_type and filter_work_type.lower() not in item["work_type"].lower():
-                    continue
-                if filter_color and filter_color.lower() not in item["color"].lower():
-                    continue
-                if filter_occasion and filter_occasion.lower() not in item["occasion"].lower():
-                    continue
+    except Exception as e:
 
-                designs.append(item)
+        print(e)
 
-    if sort_by == "newest":
-        designs.sort(key=lambda x: x["created_time"], reverse=True)
-    elif sort_by == "oldest":
-        designs.sort(key=lambda x: x["created_time"])
-    elif sort_by == "id_asc":
-        designs.sort(key=lambda x: x["design_id"])
-    elif sort_by == "id_desc":
-        designs.sort(key=lambda x: x["design_id"], reverse=True)
-    elif sort_by == "fabric_asc":
-        designs.sort(key=lambda x: (x["fabric"] or "").lower())
-    elif sort_by == "color_asc":
-        designs.sort(key=lambda x: (x["color"] or "").lower())
+        designs = []
 
     return render_template(
-        "gallery.html",
-        designs=designs,
-        fabric_options=FABRIC_OPTIONS,
-        work_type_options=WORK_TYPE_OPTIONS,
-        filter_design_id=filter_design_id,
-        filter_fabric=filter_fabric,
-        filter_work_type=filter_work_type,
-        filter_color=filter_color,
-        filter_occasion=filter_occasion,
-        sort_by=sort_by
-    )
 
+        "gallery.html",
+
+        designs=designs
+
+    )
 
 @app.route("/dashboard")
 def dashboard():
-    data = build_dashboard_data()
+
+    try:
+
+        response = (
+            supabase.table("designs")
+            .select("*")
+            .order("id", desc=True)
+            .execute()
+        )
+
+        designs = response.data if response.data else []
+
+    except Exception as e:
+
+        print(e)
+
+        designs = []
+
+    total_designs = len(designs)
+
+    fabric_count = len(
+        set(
+            d["fabric"]
+            for d in designs
+            if d.get("fabric")
+        )
+    )
+
+    work_type_count = len(
+        set(
+            d["work_type"]
+            for d in designs
+            if d.get("work_type")
+        )
+    )
+
     return render_template(
+
         "dashboard.html",
-        total_designs=data["total_designs"],
-        total_work_types=data["total_work_types"],
-        recent_designs=data["recent_designs"]
+
+        total_designs=total_designs,
+        total_fabric=fabric_count,
+        total_work_type=work_type_count,
+
+        recent_designs=designs[:10]
+
     )
 
 @app.route("/design/<filename>")
