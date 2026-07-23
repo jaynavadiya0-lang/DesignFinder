@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import shutil
 from datetime import datetime
+import requests
 import cloudinary
 import cloudinary.uploader
 
@@ -47,7 +48,7 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # FAST FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=150)  # Reduced features for fast computation
+orb = cv2.ORB_create(nfeatures=150)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 FABRIC_OPTIONS = [
@@ -61,10 +62,10 @@ WORK_TYPE_OPTIONS = [
 ]
 
 # -------------------------------------------------
-# RAM & SPEED OPTIMIZED HELPERS
+# HELPERS & COMPRESSION
 # -------------------------------------------------
 def save_stream_compressed(file_storage, dest_path, max_dim=400):
-    """Resizes and compresses images heavily before saving."""
+    """Resizes and compresses images heavily before saving to save RAM."""
     img = Image.open(file_storage.stream)
     img = img.convert("RGB")
     
@@ -112,7 +113,7 @@ def get_select_and_custom(existing_value, options):
     return "Other", existing_value
 
 # -------------------------------------------------
-# ULTRA FAST MATCHING ENGINE
+# MATCHING ENGINE
 # -------------------------------------------------
 def build_patch_features(img):
     h, w = img.shape[:2]
@@ -162,7 +163,7 @@ def get_image_match_score(upload_path, db_path):
         return 0
 
 # -------------------------------------------------
-# ROUTES
+# MAIN ROUTES
 # -------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -196,7 +197,6 @@ def home():
 
                     design_id = manual_design_id or f"D{int(datetime.now().timestamp())}"
 
-                    # Fast direct upload
                     upload_result = cloudinary.uploader.upload(
                         filepath,
                         folder="DesignFinder",
@@ -222,18 +222,34 @@ def home():
                     message = f"Design {design_id} added successfully!"
 
                 elif action == "search":
-                    # BATCH FETCH DB RECORDS (FAST)
+                    # 1. Fetch DB Records
                     all_meta_res = supabase.table("designs").select("*").execute()
-                    meta_dict = {item["filename"]: item for item in (all_meta_res.data or [])}
+                    meta_list = all_meta_res.data or []
+                    
+                    # 2. Restore images to local disk if Render wiped them
+                    for meta in meta_list:
+                        fn = meta.get("filename")
+                        img_url = meta.get("image_url")
+                        if fn and img_url:
+                            local_path = os.path.join(DATABASE_FOLDER, fn)
+                            if not os.path.exists(local_path):
+                                try:
+                                    img_data = requests.get(img_url, timeout=5).content
+                                    with open(local_path, "wb") as handler:
+                                        handler.write(img_data)
+                                except Exception as e:
+                                    print(f"Error restoring image {fn}:", e)
 
+                    # 3. Fast Image Matching Engine
                     if os.path.exists(DATABASE_FOLDER):
                         valid_files = [f for f in os.listdir(DATABASE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
+                        meta_dict = {item["filename"]: item for item in meta_list}
                         
                         for db_file in valid_files:
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 20:
+                                if score > 15:
                                     meta = meta_dict.get(db_file, {})
                                     similar_images.append({
                                         "filename": db_file,
@@ -242,7 +258,8 @@ def home():
                                         "fabric": meta.get("fabric", ""),
                                         "work_type": meta.get("work_type", ""),
                                         "color": meta.get("color", ""),
-                                        "occasion": meta.get("occasion", "")
+                                        "occasion": meta.get("occasion", ""),
+                                        "image_url": meta.get("image_url", "")
                                     })
                         similar_images.sort(key=lambda x: x["score"], reverse=True)
                         message = f"Found {len(similar_images)} matching designs."
