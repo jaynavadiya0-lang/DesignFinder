@@ -15,12 +15,12 @@ from supabase import create_client
 app = Flask(__name__)
 
 # -------------------------------------------------
-# CONFIGURATIONS
+# CONFIGURATIONS & ENVIRONMENT VARIABLES
 # -------------------------------------------------
 cloudinary.config(
-    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip(),
+    api_key=os.environ.get("CLOUDINARY_API_KEY", "").strip(),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET", "").strip(),
     secure=True
 )
 
@@ -36,7 +36,6 @@ UPLOAD_FOLDER = "uploads"
 DATABASE_FOLDER = "design_database"
 TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
-METADATA_FILE = "design_metadata.json"
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB
@@ -49,11 +48,8 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=1200)
-akaze = cv2.AKAZE_create()
-
+orb = cv2.ORB_create(nfeatures=500)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
-bf_akaze = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 # -------------------------------------------------
 # OPTIONS
@@ -69,31 +65,10 @@ WORK_TYPE_OPTIONS = [
 ]
 
 # -------------------------------------------------
-# JSON & FILE HELPERS
+# FILE & FORM HELPERS
 # -------------------------------------------------
-def load_json_file(path, default_value):
-    if not os.path.exists(path):
-        return default_value
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return default_value
-
-def save_json_file(path, data):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def load_metadata():
-    return load_json_file(METADATA_FILE, {})
-
-def save_metadata(data):
-    save_json_file(METADATA_FILE, data)
-
 def get_unique_filename(original_name):
-    base_name = secure_filename(original_name)
-    if not base_name:
-        base_name = "image.jpg"
+    base_name = secure_filename(original_name) or "image.jpg"
     name, ext = os.path.splitext(base_name)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     if not ext:
@@ -108,9 +83,6 @@ def get_uploaded_file_from_request():
             return f
     return None
 
-# -------------------------------------------------
-# FORM HELPERS
-# -------------------------------------------------
 def get_final_fabric_from_form():
     fabric_select = request.form.get("fabric_select", "").strip()
     fabric_custom = request.form.get("fabric_custom", "").strip()
@@ -137,153 +109,61 @@ def get_select_and_custom(existing_value, options):
     return "Other", existing_value
 
 # -------------------------------------------------
-# OPENCV MATCHING LOGIC
+# LIGHTWEIGHT & FAST OPENCV MATCHING (FOR RENDER)
 # -------------------------------------------------
-def load_cv_image(image_path):
-    return cv2.imread(image_path)
-
-def resize_for_matching(img, max_side=900):
-    h, w = img.shape[:2]
-    largest = max(h, w)
-    if largest > max_side:
-        scale = max_side / largest
-        img = cv2.resize(img, (int(w * scale), int(h * scale)))
-    return img
-
-def enhance_image(img):
-    img = resize_for_matching(img)
-    img = cv2.GaussianBlur(img, (3, 3), 0)
-    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    l = clahe.apply(l)
-    return cv2.cvtColor(cv2.merge((l, a, b)), cv2.COLOR_LAB2BGR)
-
-def get_gray(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-def get_edges(gray):
-    return cv2.Canny(gray, 80, 180)
-
-def get_main_patches(img):
-    h, w = img.shape[:2]
-    patches = [img]
-    center = img[int(h * 0.12):int(h * 0.88), int(w * 0.12):int(w * 0.88)]
-    upper = img[int(h * 0.05):int(h * 0.58), int(w * 0.12):int(w * 0.88)]
-    left_mid = img[int(h * 0.20):int(h * 0.88), int(w * 0.02):int(w * 0.46)]
-    right_mid = img[int(h * 0.20):int(h * 0.88), int(w * 0.54):int(w * 0.98)]
-    for p in [center, upper, left_mid, right_mid]:
-        if p is not None and p.size > 0:
-            patches.append(p)
-    return patches
-
-def get_tiles(img, rows=2, cols=2):
-    h, w = img.shape[:2]
-    tiles = []
-    tile_h, tile_w = h // rows, w // cols
-    for r in range(rows):
-        for c in range(cols):
-            y1, y2 = r * tile_h, (r + 1) * tile_h if r < rows - 1 else h
-            x1, x2 = c * tile_w, (c + 1) * tile_w if c < cols - 1 else w
-            tile = img[y1:y2, x1:x2]
-            if tile is not None and tile.size > 0:
-                tiles.append(tile)
-    return tiles
-
 def build_patch_features(img):
-    img = enhance_image(img)
-    patches = get_main_patches(img)
+    # Resize to small dimension for ultra-fast CPU processing
     h, w = img.shape[:2]
-    center = img[int(h * 0.12):int(h * 0.88), int(w * 0.12):int(w * 0.88)]
-    if center is not None and center.size > 0:
-        patches.extend(get_tiles(center, 2, 2))
+    if max(h, w) > 400:
+        scale = 400 / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
-    features = []
-    for patch in patches:
-        if patch is None or patch.size == 0:
-            continue
-        patch = resize_for_matching(patch, max_side=320)
-        gray = get_gray(patch)
-        edges = get_edges(gray)
-        orb_kp, orb_des = orb.detectAndCompute(gray, None)
-        akaze_kp, akaze_des = akaze.detectAndCompute(gray, None)
-        hsv = cv2.cvtColor(patch, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist([hsv], [0, 1], None, [32, 32], [0, 180, 0, 256])
-        cv2.normalize(hist, hist)
-        features.append({
-            "orb_kp": orb_kp, "orb_des": orb_des,
-            "akaze_kp": akaze_kp, "akaze_des": akaze_des,
-            "hist": hist, "edges": edges
-        })
-    return features
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # Fast ORB descriptor
+    kp, des = orb.detectAndCompute(gray, None)
+    
+    # Fast Color Histogram
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    hist = cv2.calcHist([hsv], [0, 1], None, [16, 16], [0, 180, 0, 256])
+    cv2.normalize(hist, hist)
 
-def knn_good_match_score(des1, kp1, des2, kp2, matcher, ratio=0.78):
-    if des1 is None or des2 is None or kp1 is None or kp2 is None:
-        return 0
-    if len(kp1) == 0 or len(kp2) == 0 or len(des1) < 2 or len(des2) < 2:
-        return 0
-    des1 = np.ascontiguousarray(des1, dtype=np.uint8)
-    des2 = np.ascontiguousarray(des2, dtype=np.uint8)
-    if des1.ndim != 2 or des2.ndim != 2 or des1.shape[1] != des2.shape[1]:
-        return 0
-    try:
-        matches = matcher.knnMatch(des1, des2, k=2)
-    except Exception:
-        return 0
-    good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < ratio * n.distance]
-    base = min(len(kp1), len(kp2))
-    return (len(good) / base) * 100 if base > 0 else 0
-
-def edge_similarity_score(edge1, edge2):
-    try:
-        diff = np.mean(cv2.absdiff(cv2.resize(edge1, (220, 220)), cv2.resize(edge2, (220, 220))))
-        return max(0, 100 - (diff / 255.0) * 100)
-    except Exception:
-        return 0
-
-def hist_similarity_score(hist1, hist2):
-    try:
-        corr = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
-        return max(0, min(100, ((corr + 1) / 2) * 100))
-    except Exception:
-        return 0
-
-def compare_single_feature_patch(f1, f2):
-    orb_score = knn_good_match_score(f1["orb_des"], f1["orb_kp"], f2["orb_des"], f2["orb_kp"], bf_orb)
-    akaze_score = knn_good_match_score(f1["akaze_des"], f1["akaze_kp"], f2["akaze_des"], f2["akaze_kp"], bf_akaze) if f1["akaze_des"] is not None and f2["akaze_des"] is not None else 0
-    hist_score = hist_similarity_score(f1["hist"], f2["hist"])
-    edge_score = edge_similarity_score(f1["edges"], f2["edges"])
-    return (orb_score * 0.38 + akaze_score * 0.32 + hist_score * 0.15 + edge_score * 0.15)
-
-def compare_feature_sets(features1, features2):
-    best_patch_scores = []
-    for f1 in features1:
-        best_score = max([compare_single_feature_patch(f1, f2) for f2 in features2], default=0)
-        if best_score > 0:
-            best_patch_scores.append(best_score)
-    if not best_patch_scores:
-        return 0
-    best_patch_scores.sort(reverse=True)
-    n = len(best_patch_scores)
-    if n >= 6:
-        final_score = sum(best_patch_scores[i] * w for i, w in enumerate([0.22, 0.20, 0.18, 0.15, 0.13, 0.12]))
-    elif n >= 4:
-        final_score = sum(best_patch_scores[i] * w for i, w in enumerate([0.32, 0.28, 0.22, 0.18]))
-    elif n >= 2:
-        final_score = best_patch_scores[0] * 0.60 + best_patch_scores[1] * 0.40
-    else:
-        final_score = best_patch_scores[0]
-    return min(100, round(final_score * 2.2, 2))
+    return {"kp": kp, "des": des, "hist": hist}
 
 def get_image_match_score(upload_path, db_path):
-    upload_img = load_cv_image(upload_path)
-    db_img = load_cv_image(db_path)
-    if upload_img is None or db_img is None:
+    img1 = cv2.imread(upload_path)
+    img2 = cv2.imread(db_path)
+
+    if img1 is None or img2 is None:
         return 0
-    return compare_feature_sets(build_patch_features(upload_img), build_patch_features(db_img))
+
+    f1 = build_patch_features(img1)
+    f2 = build_patch_features(img2)
+
+    # 1. Feature Match Score
+    feat_score = 0
+    if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 2 and len(f2["des"]) >= 2:
+        try:
+            matches = bf_orb.knnMatch(f1["des"], f2["des"], k=2)
+            good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.78 * n.distance]
+            base = min(len(f1["kp"]), len(f2["kp"]))
+            feat_score = (len(good) / base) * 100 if base > 0 else 0
+        except Exception:
+            feat_score = 0
+
+    # 2. Color Histogram Score
+    try:
+        corr = cv2.compareHist(f1["hist"], f2["hist"], cv2.HISTCMP_CORREL)
+        hist_score = max(0, min(100, ((corr + 1) / 2) * 100))
+    except Exception:
+        hist_score = 0
+
+    # Weighted Score (Fast & Effective)
+    final_score = (feat_score * 0.7) + (hist_score * 0.3)
+    return min(100, round(final_score * 1.8, 2))
 
 # -------------------------------------------------
-# ROUTES
+# MAIN ROUTES
 # -------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -328,7 +208,7 @@ def home():
                         # 1. Cloudinary upload
                         upload_result = cloudinary.uploader.upload(filepath, folder="DesignFinder")
                         
-                        # 2. Local database cache save (for OpenCV matching)
+                        # 2. Local cache save for OpenCV
                         db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
                         cv2.imwrite(db_local_path, cv2.imread(filepath))
 
@@ -348,13 +228,13 @@ def home():
                         message = f"Design {design_id} added successfully."
 
                 elif action == "search":
-                    # Image Match Engine Logic
+                    # Fast OpenCV Match Engine
                     if os.path.exists(DATABASE_FOLDER):
                         for db_file in os.listdir(DATABASE_FOLDER):
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 15:  # threshold %
+                                if score > 10:  # Match Threshold
                                     res = supabase.table("designs").select("*").eq("filename", db_file).execute()
                                     meta = res.data[0] if res.data else {}
                                     similar_images.append({
@@ -387,7 +267,7 @@ def gallery():
         response = supabase.table("designs").select("*").order("id", desc=True).execute()
         designs = response.data if response.data else []
     except Exception as e:
-        print(e)
+        print("Gallery Fetch Error:", e)
         designs = []
     return render_template("gallery.html", designs=designs, fabric_options=FABRIC_OPTIONS, work_type_options=WORK_TYPE_OPTIONS)
 
@@ -397,7 +277,7 @@ def dashboard():
         response = supabase.table("designs").select("*").order("id", desc=True).execute()
         designs = response.data if response.data else []
     except Exception as e:
-        print(e)
+        print("Dashboard Fetch Error:", e)
         designs = []
 
     total_designs = len(designs)
