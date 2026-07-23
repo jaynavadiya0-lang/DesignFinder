@@ -4,9 +4,7 @@ from werkzeug.utils import secure_filename
 import os
 import cv2
 import numpy as np
-import json
 import shutil
-from collections import Counter
 from datetime import datetime
 import cloudinary
 import cloudinary.uploader
@@ -39,7 +37,7 @@ TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25 MB
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # Reduced to 10 MB limit for RAM safety
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATABASE_FOLDER, exist_ok=True)
@@ -49,7 +47,7 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=300)
+orb = cv2.ORB_create(nfeatures=250)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 # -------------------------------------------------
@@ -66,14 +64,13 @@ WORK_TYPE_OPTIONS = [
 ]
 
 # -------------------------------------------------
-# MEMORY OPTIMIZATION & HELPER FUNCTIONS
+# RAM-EFFICIENT IMAGE SAVER
 # -------------------------------------------------
-def save_and_compress_image(file_obj, destination_path, max_dim=800):
-    """Resizes high-res images to save RAM and disk on Render free tier."""
-    img = Image.open(file_obj)
+def save_stream_compressed(file_storage, dest_path, max_dim=600):
+    """Directly resizes file stream without allocating high memory."""
+    img = Image.open(file_storage.stream)
     img = img.convert("RGB")
     
-    # Auto Resize
     w, h = img.size
     if max(w, h) > max_dim:
         if w > h:
@@ -84,12 +81,12 @@ def save_and_compress_image(file_obj, destination_path, max_dim=800):
             new_w = int(w * (max_dim / h))
         img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
-    img.save(destination_path, "JPEG", quality=80, optimize=True)
+    img.save(dest_path, "JPEG", quality=75, optimize=True)
 
 def get_unique_filename(original_name):
     base_name = secure_filename(original_name) or "image.jpg"
     name, ext = os.path.splitext(base_name)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{name}_{timestamp}.jpg"
 
 def get_uploaded_file_from_request():
@@ -122,8 +119,8 @@ def get_select_and_custom(existing_value, options):
 # -------------------------------------------------
 def build_patch_features(img):
     h, w = img.shape[:2]
-    if max(h, w) > 300:
-        scale = 300 / max(h, w)
+    if max(h, w) > 250:
+        scale = 250 / max(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -189,8 +186,8 @@ def home():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], saved_upload_name)
 
             try:
-                # Optimized save (Compress & Resize)
-                save_and_compress_image(file, filepath, max_dim=800)
+                # Compression on initial stream read
+                save_stream_compressed(file, filepath, max_dim=600)
                 image_name = saved_upload_name
 
                 if action == "add":
