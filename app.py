@@ -49,7 +49,7 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=500)
+orb = cv2.ORB_create(nfeatures=300)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 # -------------------------------------------------
@@ -66,15 +66,31 @@ WORK_TYPE_OPTIONS = [
 ]
 
 # -------------------------------------------------
-# FILE & FORM HELPERS
+# MEMORY OPTIMIZATION & HELPER FUNCTIONS
 # -------------------------------------------------
+def save_and_compress_image(file_obj, destination_path, max_dim=800):
+    """Resizes high-res images to save RAM and disk on Render free tier."""
+    img = Image.open(file_obj)
+    img = img.convert("RGB")
+    
+    # Auto Resize
+    w, h = img.size
+    if max(w, h) > max_dim:
+        if w > h:
+            new_w = max_dim
+            new_h = int(h * (max_dim / w))
+        else:
+            new_h = max_dim
+            new_w = int(w * (max_dim / h))
+        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    
+    img.save(destination_path, "JPEG", quality=80, optimize=True)
+
 def get_unique_filename(original_name):
     base_name = secure_filename(original_name) or "image.jpg"
     name, ext = os.path.splitext(base_name)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    if not ext:
-        ext = ".jpg"
-    return f"{name}_{timestamp}{ext}"
+    return f"{name}_{timestamp}.jpg"
 
 def get_uploaded_file_from_request():
     possible_keys = ["image", "camera_image", "gallery_image"]
@@ -87,20 +103,12 @@ def get_uploaded_file_from_request():
 def get_final_fabric_from_form():
     fabric_select = request.form.get("fabric_select", "").strip()
     fabric_custom = request.form.get("fabric_custom", "").strip()
-    if fabric_select == "Other":
-        return fabric_custom
-    elif fabric_select:
-        return fabric_select
-    return fabric_custom
+    return fabric_custom if fabric_select == "Other" else (fabric_select or fabric_custom)
 
 def get_final_work_type_from_form():
     work_type_select = request.form.get("work_type_select", "").strip()
     work_type_custom = request.form.get("work_type_custom", "").strip()
-    if work_type_select == "Other":
-        return work_type_custom
-    elif work_type_select:
-        return work_type_select
-    return work_type_custom
+    return work_type_custom if work_type_select == "Other" else (work_type_select or work_type_custom)
 
 def get_select_and_custom(existing_value, options):
     if not existing_value:
@@ -110,19 +118,19 @@ def get_select_and_custom(existing_value, options):
     return "Other", existing_value
 
 # -------------------------------------------------
-# LIGHTWEIGHT & FAST OPENCV MATCHING (FOR RENDER)
+# LIGHTWEIGHT OPENCV MATCHING
 # -------------------------------------------------
 def build_patch_features(img):
     h, w = img.shape[:2]
-    if max(h, w) > 400:
-        scale = 400 / max(h, w)
+    if max(h, w) > 300:
+        scale = 300 / max(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     kp, des = orb.detectAndCompute(gray, None)
     
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    hist = cv2.calcHist([hsv], [0, 1], None, [16, 16], [0, 180, 0, 256])
+    hist = cv2.calcHist([hsv], [0, 1], None, [8, 8], [0, 180, 0, 256])
     cv2.normalize(hist, hist)
 
     return {"kp": kp, "des": des, "hist": hist}
@@ -181,7 +189,8 @@ def home():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], saved_upload_name)
 
             try:
-                file.save(filepath)
+                # Optimized save (Compress & Resize)
+                save_and_compress_image(file, filepath, max_dim=800)
                 image_name = saved_upload_name
 
                 if action == "add":
@@ -202,14 +211,14 @@ def home():
                         except Exception:
                             design_id = f"D{int(datetime.now().timestamp())}"
 
-                    # 1. Upload to Cloudinary
+                    # 1. Cloudinary upload
                     upload_result = cloudinary.uploader.upload(filepath, folder="DesignFinder")
                     
-                    # 2. Local File Copy for OpenCV Cache
+                    # 2. Local File Copy for OpenCV
                     db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
                     shutil.copy(filepath, db_local_path)
 
-                    # 3. Save to Supabase Database
+                    # 3. Supabase Entry
                     supabase.table("designs").insert({
                         "design_id": design_id,
                         "filename": saved_upload_name,
@@ -247,7 +256,6 @@ def home():
                         message = f"Found {len(similar_images)} matching designs."
 
             except Exception as e:
-                # Catch exact error message on UI screen
                 message = f"Operation failed: {str(e)}"
 
     return render_template(
