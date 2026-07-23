@@ -24,13 +24,13 @@ cloudinary.config(
     secure=True
 )
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "").strip()
 
-supabase = create_client(
-    SUPABASE_URL if SUPABASE_URL else "",
-    SUPABASE_KEY if SUPABASE_KEY else ""
-)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("WARNING: SUPABASE credentials missing in environment variables!")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 UPLOAD_FOLDER = "uploads"
 DATABASE_FOLDER = "design_database"
