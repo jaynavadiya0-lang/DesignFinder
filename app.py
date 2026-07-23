@@ -5,6 +5,7 @@ import os
 import cv2
 import numpy as np
 import json
+import shutil
 from collections import Counter
 from datetime import datetime
 import cloudinary
@@ -112,18 +113,14 @@ def get_select_and_custom(existing_value, options):
 # LIGHTWEIGHT & FAST OPENCV MATCHING (FOR RENDER)
 # -------------------------------------------------
 def build_patch_features(img):
-    # Resize to small dimension for ultra-fast CPU processing
     h, w = img.shape[:2]
     if max(h, w) > 400:
         scale = 400 / max(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # Fast ORB descriptor
     kp, des = orb.detectAndCompute(gray, None)
     
-    # Fast Color Histogram
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     hist = cv2.calcHist([hsv], [0, 1], None, [16, 16], [0, 180, 0, 256])
     cv2.normalize(hist, hist)
@@ -131,36 +128,37 @@ def build_patch_features(img):
     return {"kp": kp, "des": des, "hist": hist}
 
 def get_image_match_score(upload_path, db_path):
-    img1 = cv2.imread(upload_path)
-    img2 = cv2.imread(db_path)
-
-    if img1 is None or img2 is None:
-        return 0
-
-    f1 = build_patch_features(img1)
-    f2 = build_patch_features(img2)
-
-    # 1. Feature Match Score
-    feat_score = 0
-    if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 2 and len(f2["des"]) >= 2:
-        try:
-            matches = bf_orb.knnMatch(f1["des"], f2["des"], k=2)
-            good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.78 * n.distance]
-            base = min(len(f1["kp"]), len(f2["kp"]))
-            feat_score = (len(good) / base) * 100 if base > 0 else 0
-        except Exception:
-            feat_score = 0
-
-    # 2. Color Histogram Score
     try:
-        corr = cv2.compareHist(f1["hist"], f2["hist"], cv2.HISTCMP_CORREL)
-        hist_score = max(0, min(100, ((corr + 1) / 2) * 100))
-    except Exception:
-        hist_score = 0
+        img1 = cv2.imread(upload_path)
+        img2 = cv2.imread(db_path)
 
-    # Weighted Score (Fast & Effective)
-    final_score = (feat_score * 0.7) + (hist_score * 0.3)
-    return min(100, round(final_score * 1.8, 2))
+        if img1 is None or img2 is None:
+            return 0
+
+        f1 = build_patch_features(img1)
+        f2 = build_patch_features(img2)
+
+        feat_score = 0
+        if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 2 and len(f2["des"]) >= 2:
+            try:
+                matches = bf_orb.knnMatch(f1["des"], f2["des"], k=2)
+                good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.78 * n.distance]
+                base = min(len(f1["kp"]), len(f2["kp"]))
+                feat_score = (len(good) / base) * 100 if base > 0 else 0
+            except Exception:
+                feat_score = 0
+
+        try:
+            corr = cv2.compareHist(f1["hist"], f2["hist"], cv2.HISTCMP_CORREL)
+            hist_score = max(0, min(100, ((corr + 1) / 2) * 100))
+        except Exception:
+            hist_score = 0
+
+        final_score = (feat_score * 0.7) + (hist_score * 0.3)
+        return min(100, round(final_score * 1.8, 2))
+    except Exception as e:
+        print("Match score calculation error:", e)
+        return 0
 
 # -------------------------------------------------
 # MAIN ROUTES
@@ -197,44 +195,43 @@ def home():
 
                     design_id = manual_design_id
                     if not design_id:
-                        result = supabase.table("designs").select("id", count="exact").execute()
-                        total = result.count if result.count else 0
-                        design_id = f"D{total + 1:05d}"
+                        try:
+                            result = supabase.table("designs").select("id", count="exact").execute()
+                            total = result.count if result.count is not None else 0
+                            design_id = f"D{total + 1:05d}"
+                        except Exception:
+                            design_id = f"D{int(datetime.now().timestamp())}"
 
-                    duplicate = supabase.table("designs").select("id").eq("design_id", design_id).execute()
-                    if duplicate.data:
-                        message = f"Design ID {design_id} already exists."
-                    else:
-                        # 1. Cloudinary upload
-                        upload_result = cloudinary.uploader.upload(filepath, folder="DesignFinder")
-                        
-                        # 2. Local cache save for OpenCV
-                        db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
-                        cv2.imwrite(db_local_path, cv2.imread(filepath))
+                    # 1. Upload to Cloudinary
+                    upload_result = cloudinary.uploader.upload(filepath, folder="DesignFinder")
+                    
+                    # 2. Local File Copy for OpenCV Cache
+                    db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
+                    shutil.copy(filepath, db_local_path)
 
-                        # 3. Save to Supabase
-                        supabase.table("designs").insert({
-                            "design_id": design_id,
-                            "filename": saved_upload_name,
-                            "image_url": upload_result["secure_url"],
-                            "public_id": upload_result["public_id"],
-                            "fabric": fabric,
-                            "work_type": work_type,
-                            "stitch": stitch,
-                            "color": color,
-                            "occasion": occasion,
-                            "notes": notes
-                        }).execute()
-                        message = f"Design {design_id} added successfully."
+                    # 3. Save to Supabase Database
+                    supabase.table("designs").insert({
+                        "design_id": design_id,
+                        "filename": saved_upload_name,
+                        "image_url": upload_result.get("secure_url", ""),
+                        "public_id": upload_result.get("public_id", ""),
+                        "fabric": fabric,
+                        "work_type": work_type,
+                        "stitch": stitch,
+                        "color": color,
+                        "occasion": occasion,
+                        "notes": notes
+                    }).execute()
+
+                    message = f"Design {design_id} added successfully!"
 
                 elif action == "search":
-                    # Fast OpenCV Match Engine
                     if os.path.exists(DATABASE_FOLDER):
                         for db_file in os.listdir(DATABASE_FOLDER):
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 10:  # Match Threshold
+                                if score > 5:
                                     res = supabase.table("designs").select("*").eq("filename", db_file).execute()
                                     meta = res.data[0] if res.data else {}
                                     similar_images.append({
@@ -250,6 +247,7 @@ def home():
                         message = f"Found {len(similar_images)} matching designs."
 
             except Exception as e:
+                # Catch exact error message on UI screen
                 message = f"Operation failed: {str(e)}"
 
     return render_template(
