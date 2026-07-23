@@ -46,9 +46,10 @@ os.makedirs(TEMPLATES_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
 
 # -------------------------------------------------
-# FAST FEATURE DETECTORS
+# HIGH-ACCURACY DESIGN FEATURE DETECTOR
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=150)
+# Increased keypoints to capture detailed embroidery/prints
+orb = cv2.ORB_create(nfeatures=500, scaleFactor=1.2, nlevels=8)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 FABRIC_OPTIONS = [
@@ -64,8 +65,8 @@ WORK_TYPE_OPTIONS = [
 # -------------------------------------------------
 # HELPERS & COMPRESSION
 # -------------------------------------------------
-def save_stream_compressed(file_storage, dest_path, max_dim=400):
-    """Resizes and compresses images heavily before saving to save RAM."""
+def save_stream_compressed(file_storage, dest_path, max_dim=600):
+    """Resizes and normalizes images for high-accuracy feature extraction."""
     img = Image.open(file_storage.stream)
     img = img.convert("RGB")
     
@@ -77,9 +78,9 @@ def save_stream_compressed(file_storage, dest_path, max_dim=400):
         else:
             new_h = max_dim
             new_w = int(w * (max_dim / h))
-        img = img.resize((new_w, new_h), Image.Resampling.NEAREST)
+        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
-    img.save(dest_path, "JPEG", quality=65, optimize=True)
+    img.save(dest_path, "JPEG", quality=85, optimize=True)
 
 def get_unique_filename(original_name):
     base_name = secure_filename(original_name) or "image.jpg"
@@ -113,22 +114,32 @@ def get_select_and_custom(existing_value, options):
     return "Other", existing_value
 
 # -------------------------------------------------
-# MATCHING ENGINE
+# ADVANCED MULTI-FEATURE MATCHING ENGINE
 # -------------------------------------------------
-def build_patch_features(img):
+def extract_advanced_features(img):
+    """Extracts Scale-Invariant ORB Keypoints, Multi-channel HSV Histograms, & Texture Canny Gradients."""
     h, w = img.shape[:2]
-    if max(h, w) > 180:
-        scale = 180 / max(h, w)
-        img = cv2.resize(img, (int(w * scale), int(h * scale)))
+    if max(h, w) > 300:
+        scale = 300 / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
+    # 1. ORB Pattern Keypoints
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    kp, des = orb.detectAndCompute(gray, None)
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) for better lighting resilience
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray_enhanced = clahe.apply(gray)
+    kp, des = orb.detectAndCompute(gray_enhanced, None)
     
+    # 2. Multi-channel HSV Color Analysis
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    hist = cv2.calcHist([hsv], [0, 1], None, [6, 6], [0, 180, 0, 256])
-    cv2.normalize(hist, hist)
+    hist_hsv = cv2.calcHist([hsv], [0, 1, 2], None, [8, 8, 4], [0, 180, 0, 256, 0, 256])
+    cv2.normalize(hist_hsv, hist_hsv)
 
-    return {"kp": kp, "des": des, "hist": hist}
+    # 3. Structural Texture Density (Canny Edges)
+    edges = cv2.Canny(gray_enhanced, 50, 150)
+    edge_density = np.sum(edges > 0) / (edges.shape[0] * edges.shape[1])
+
+    return {"kp": kp, "des": des, "hist": hist_hsv, "edge_density": edge_density}
 
 def get_image_match_score(upload_path, db_path):
     try:
@@ -138,32 +149,53 @@ def get_image_match_score(upload_path, db_path):
         if img1 is None or img2 is None:
             return 0
 
-        f1 = build_patch_features(img1)
-        f2 = build_patch_features(img2)
+        f1 = extract_advanced_features(img1)
+        f2 = extract_advanced_features(img2)
 
+        # A. Pattern Feature Match (50% Weight)
         feat_score = 0
-        if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 2 and len(f2["des"]) >= 2:
+        if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 4 and len(f2["des"]) >= 4:
             try:
                 matches = bf_orb.knnMatch(f1["des"], f2["des"], k=2)
-                good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.8 * n.distance]
-                base = min(len(f1["kp"]), len(f2["kp"]))
-                feat_score = (len(good) / base) * 100 if base > 0 else 0
+                good = []
+                for m_pair in matches:
+                    if len(m_pair) == 2:
+                        m, n = m_pair
+                        if m.distance < 0.75 * n.distance:  # Strict Lowe's ratio test
+                            good.append(m)
+                            
+                base_kp = min(len(f1["kp"]), len(f2["kp"]))
+                feat_score = (len(good) / base_kp) * 100 if base_kp > 0 else 0
             except Exception:
                 feat_score = 0
 
+        # B. Color Similarity Score (30% Weight)
         try:
-            corr = cv2.compareHist(f1["hist"], f2["hist"], cv2.HISTCMP_CORREL)
-            hist_score = max(0, min(100, ((corr + 1) / 2) * 100))
+            color_corr = cv2.compareHist(f1["hist"], f2["hist"], cv2.HISTCMP_CORREL)
+            color_score = max(0, min(100, ((color_corr + 1) / 2) * 100))
         except Exception:
-            hist_score = 0
+            color_score = 0
 
-        final_score = (feat_score * 0.7) + (hist_score * 0.3)
-        return min(100, round(final_score * 1.8, 2))
+        # C. Texture Density Match (20% Weight)
+        try:
+            density_diff = abs(f1["edge_density"] - f2["edge_density"])
+            texture_score = max(0, 100 - (density_diff * 400))
+        except Exception:
+            texture_score = 0
+
+        # Composite Match Score Calculation
+        composite_score = (feat_score * 0.50) + (color_score * 0.30) + (texture_score * 0.20)
+        
+        # Scaling multiplier for user clarity
+        final_score = min(100, round(composite_score * 1.5, 1))
+        return final_score if final_score >= 10 else 0
+        
     except Exception as e:
+        print("Matching Error:", e)
         return 0
 
 # -------------------------------------------------
-# MAIN ROUTES
+# ROUTES
 # -------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -183,7 +215,7 @@ def home():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], saved_upload_name)
 
             try:
-                save_stream_compressed(file, filepath, max_dim=400)
+                save_stream_compressed(file, filepath, max_dim=600)
                 image_name = saved_upload_name
 
                 if action == "add":
@@ -200,7 +232,7 @@ def home():
                     upload_result = cloudinary.uploader.upload(
                         filepath,
                         folder="DesignFinder",
-                        quality="30"
+                        quality="80"
                     )
                     
                     db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
@@ -222,11 +254,11 @@ def home():
                     message = f"Design {design_id} added successfully!"
 
                 elif action == "search":
-                    # 1. Fetch DB Records
+                    # 1. Fetch DB Records Batch
                     all_meta_res = supabase.table("designs").select("*").execute()
                     meta_list = all_meta_res.data or []
                     
-                    # 2. Restore images to local disk if Render wiped them
+                    # 2. Auto-restore images locally if Render ephemeral disk wiped them
                     for meta in meta_list:
                         fn = meta.get("filename")
                         img_url = meta.get("image_url")
@@ -240,7 +272,7 @@ def home():
                                 except Exception as e:
                                     print(f"Error restoring image {fn}:", e)
 
-                    # 3. Fast Image Matching Engine
+                    # 3. High-Accuracy Match Engine Execution
                     if os.path.exists(DATABASE_FOLDER):
                         valid_files = [f for f in os.listdir(DATABASE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
                         meta_dict = {item["filename"]: item for item in meta_list}
@@ -249,7 +281,7 @@ def home():
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 15:
+                                if score > 12:  # Filter weak matches
                                     meta = meta_dict.get(db_file, {})
                                     similar_images.append({
                                         "filename": db_file,
