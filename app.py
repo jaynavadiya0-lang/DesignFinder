@@ -48,7 +48,6 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # HIGH-ACCURACY DESIGN FEATURE DETECTOR
 # -------------------------------------------------
-# Increased keypoints to capture detailed embroidery/prints
 orb = cv2.ORB_create(nfeatures=500, scaleFactor=1.2, nlevels=8)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
@@ -62,11 +61,12 @@ WORK_TYPE_OPTIONS = [
     "Allover", "Embroidery", "Printed", "Weaving", "Traditional"
 ]
 
+STITCH_OPTIONS = ["Unstitched", "Semi-Stitched", "Fully Stitched", "Dress Material", "Saree", "Lehenga"]
+
 # -------------------------------------------------
-# HELPERS & COMPRESSION
+# HELPERS
 # -------------------------------------------------
 def save_stream_compressed(file_storage, dest_path, max_dim=600):
-    """Resizes and normalizes images for high-accuracy feature extraction."""
     img = Image.open(file_storage.stream)
     img = img.convert("RGB")
     
@@ -96,46 +96,33 @@ def get_uploaded_file_from_request():
             return f
     return None
 
-def get_final_fabric_from_form():
-    fabric_select = request.form.get("fabric_select", "").strip()
-    fabric_custom = request.form.get("fabric_custom", "").strip()
-    return fabric_custom if fabric_select == "Other" else (fabric_select or fabric_custom)
-
-def get_final_work_type_from_form():
-    work_type_select = request.form.get("work_type_select", "").strip()
-    work_type_custom = request.form.get("work_type_custom", "").strip()
-    return work_type_custom if work_type_select == "Other" else (work_type_select or work_type_custom)
-
-def get_select_and_custom(existing_value, options):
-    if not existing_value:
-        return "", ""
-    if existing_value in options:
-        return existing_value, ""
-    return "Other", existing_value
+def process_single_dropdown_field(field_name):
+    """Processes dynamic single-dropdown value with optional custom entry."""
+    selected_val = request.form.get(f"{field_name}_select", "").strip()
+    custom_val = request.form.get(f"{field_name}_custom", "").strip()
+    
+    if selected_val == "Other":
+        return custom_val if custom_val else "Other"
+    return selected_val if selected_val else custom_val
 
 # -------------------------------------------------
-# ADVANCED MULTI-FEATURE MATCHING ENGINE
+# MATCHING ENGINE
 # -------------------------------------------------
 def extract_advanced_features(img):
-    """Extracts Scale-Invariant ORB Keypoints, Multi-channel HSV Histograms, & Texture Canny Gradients."""
     h, w = img.shape[:2]
     if max(h, w) > 300:
         scale = 300 / max(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
-    # 1. ORB Pattern Keypoints
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) for better lighting resilience
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     gray_enhanced = clahe.apply(gray)
     kp, des = orb.detectAndCompute(gray_enhanced, None)
     
-    # 2. Multi-channel HSV Color Analysis
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     hist_hsv = cv2.calcHist([hsv], [0, 1, 2], None, [8, 8, 4], [0, 180, 0, 256, 0, 256])
     cv2.normalize(hist_hsv, hist_hsv)
 
-    # 3. Structural Texture Density (Canny Edges)
     edges = cv2.Canny(gray_enhanced, 50, 150)
     edge_density = np.sum(edges > 0) / (edges.shape[0] * edges.shape[1])
 
@@ -152,43 +139,31 @@ def get_image_match_score(upload_path, db_path):
         f1 = extract_advanced_features(img1)
         f2 = extract_advanced_features(img2)
 
-        # A. Pattern Feature Match (50% Weight)
         feat_score = 0
         if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 4 and len(f2["des"]) >= 4:
             try:
                 matches = bf_orb.knnMatch(f1["des"], f2["des"], k=2)
-                good = []
-                for m_pair in matches:
-                    if len(m_pair) == 2:
-                        m, n = m_pair
-                        if m.distance < 0.75 * n.distance:  # Strict Lowe's ratio test
-                            good.append(m)
-                            
+                good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.75 * n.distance]
                 base_kp = min(len(f1["kp"]), len(f2["kp"]))
                 feat_score = (len(good) / base_kp) * 100 if base_kp > 0 else 0
             except Exception:
                 feat_score = 0
 
-        # B. Color Similarity Score (30% Weight)
         try:
             color_corr = cv2.compareHist(f1["hist"], f2["hist"], cv2.HISTCMP_CORREL)
             color_score = max(0, min(100, ((color_corr + 1) / 2) * 100))
         except Exception:
             color_score = 0
 
-        # C. Texture Density Match (20% Weight)
         try:
             density_diff = abs(f1["edge_density"] - f2["edge_density"])
             texture_score = max(0, 100 - (density_diff * 400))
         except Exception:
             texture_score = 0
 
-        # Composite Match Score Calculation
         composite_score = (feat_score * 0.50) + (color_score * 0.30) + (texture_score * 0.20)
-        
-        # Scaling multiplier for user clarity
         final_score = min(100, round(composite_score * 1.5, 1))
-        return final_score if final_score >= 10 else 0
+        return final_score if final_score >= 12 else 0
         
     except Exception as e:
         print("Matching Error:", e)
@@ -208,7 +183,7 @@ def home():
         file = get_uploaded_file_from_request()
 
         if not file or not file.filename:
-            message = "Please choose image from camera or gallery."
+            message = "⚠️ Please capture or select an image first."
         else:
             original_filename = secure_filename(file.filename) or "image.jpg"
             saved_upload_name = get_unique_filename(original_filename)
@@ -219,20 +194,21 @@ def home():
                 image_name = saved_upload_name
 
                 if action == "add":
-                    fabric = get_final_fabric_from_form()
-                    work_type = get_final_work_type_from_form()
+                    fabric = process_single_dropdown_field("fabric")
+                    work_type = process_single_dropdown_field("work_type")
                     stitch = request.form.get("stitch", "").strip()
                     manual_design_id = request.form.get("design_id", "").strip()
                     color = request.form.get("color", "").strip()
                     occasion = request.form.get("occasion", "").strip()
                     notes = request.form.get("notes", "").strip()
 
-                    design_id = manual_design_id or f"D{int(datetime.now().timestamp())}"
+                    # Auto Generate Design ID if left blank
+                    design_id = manual_design_id or f"DES-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
                     upload_result = cloudinary.uploader.upload(
                         filepath,
                         folder="DesignFinder",
-                        quality="80"
+                        quality="85"
                     )
                     
                     db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
@@ -251,14 +227,13 @@ def home():
                         "notes": notes
                     }).execute()
 
-                    message = f"Design {design_id} added successfully!"
+                    message = f"✅ Design '{design_id}' registered successfully in Database!"
 
                 elif action == "search":
-                    # 1. Fetch DB Records Batch
                     all_meta_res = supabase.table("designs").select("*").execute()
                     meta_list = all_meta_res.data or []
                     
-                    # 2. Auto-restore images locally if Render ephemeral disk wiped them
+                    # Auto restore missing files from Cloudinary
                     for meta in meta_list:
                         fn = meta.get("filename")
                         img_url = meta.get("image_url")
@@ -272,7 +247,6 @@ def home():
                                 except Exception as e:
                                     print(f"Error restoring image {fn}:", e)
 
-                    # 3. High-Accuracy Match Engine Execution
                     if os.path.exists(DATABASE_FOLDER):
                         valid_files = [f for f in os.listdir(DATABASE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
                         meta_dict = {item["filename"]: item for item in meta_list}
@@ -281,23 +255,25 @@ def home():
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 12:  # Filter weak matches
+                                if score > 12:
                                     meta = meta_dict.get(db_file, {})
                                     similar_images.append({
                                         "filename": db_file,
                                         "design_id": meta.get("design_id", "N/A"),
                                         "score": score,
-                                        "fabric": meta.get("fabric", ""),
-                                        "work_type": meta.get("work_type", ""),
-                                        "color": meta.get("color", ""),
-                                        "occasion": meta.get("occasion", ""),
+                                        "fabric": meta.get("fabric", "N/A"),
+                                        "work_type": meta.get("work_type", "N/A"),
+                                        "stitch": meta.get("stitch", "N/A"),
+                                        "color": meta.get("color", "N/A"),
+                                        "occasion": meta.get("occasion", "N/A"),
+                                        "notes": meta.get("notes", ""),
                                         "image_url": meta.get("image_url", "")
                                     })
                         similar_images.sort(key=lambda x: x["score"], reverse=True)
-                        message = f"Found {len(similar_images)} matching designs."
+                        message = f"🔍 Search Completed: Found {len(similar_images)} matching designs."
 
             except Exception as e:
-                message = f"Operation failed: {str(e)}"
+                message = f"❌ Error: {str(e)}"
 
     return render_template(
         "index.html",
@@ -305,7 +281,8 @@ def home():
         similar_images=similar_images,
         message=message,
         fabric_options=FABRIC_OPTIONS,
-        work_type_options=WORK_TYPE_OPTIONS
+        work_type_options=WORK_TYPE_OPTIONS,
+        stitch_options=STITCH_OPTIONS
     )
 
 @app.route("/gallery")
@@ -369,7 +346,7 @@ def design_detail(filename):
     if not design:
         return redirect(url_for("gallery"))
 
-    return render_template("design_detail.html", design=design, previous_design=None, next_design=None, similar_designs=[])
+    return render_template("design_detail.html", design=design)
 
 @app.route("/edit/<filename>", methods=["GET", "POST"])
 def edit_design(filename):
@@ -380,8 +357,9 @@ def edit_design(filename):
         details = {}
 
     if request.method == "POST":
-        fabric = get_final_fabric_from_form()
-        work_type = get_final_work_type_from_form()
+        fabric = process_single_dropdown_field("fabric")
+        work_type = process_single_dropdown_field("work_type")
+        stitch = request.form.get("stitch", "").strip()
         color = request.form.get("color", "").strip()
         occasion = request.form.get("occasion", "").strip()
         notes = request.form.get("notes", "").strip()
@@ -389,6 +367,7 @@ def edit_design(filename):
         supabase.table("designs").update({
             "fabric": fabric,
             "work_type": work_type,
+            "stitch": stitch,
             "color": color,
             "occasion": occasion,
             "notes": notes
@@ -396,19 +375,13 @@ def edit_design(filename):
 
         return redirect(url_for("gallery"))
 
-    selected_fabric, custom_fabric = get_select_and_custom(details.get("fabric", ""), FABRIC_OPTIONS)
-    selected_work_type, custom_work_type = get_select_and_custom(details.get("work_type", ""), WORK_TYPE_OPTIONS)
-
     return render_template(
         "edit_design.html",
         filename=filename,
         details=details,
         fabric_options=FABRIC_OPTIONS,
         work_type_options=WORK_TYPE_OPTIONS,
-        selected_fabric=selected_fabric,
-        custom_fabric=custom_fabric,
-        selected_work_type=selected_work_type,
-        custom_work_type=custom_work_type
+        stitch_options=STITCH_OPTIONS
     )
 
 @app.route("/delete/<filename>")
@@ -435,14 +408,6 @@ def uploaded_file(filename):
 @app.route("/database/<filename>")
 def database_file(filename):
     return send_from_directory(DATABASE_FOLDER, filename)
-
-@app.route("/manifest.json")
-def manifest():
-    return send_from_directory("static", "manifest.json")
-
-@app.route("/service-worker.js")
-def service_worker():
-    return send_from_directory("static", "service-worker.js")
 
 if __name__ == "__main__":
     app.run(debug=True)
