@@ -37,7 +37,7 @@ TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB RAM Safety
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATABASE_FOLDER, exist_ok=True)
@@ -47,12 +47,9 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 # -------------------------------------------------
 # FAST FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=200)
+orb = cv2.ORB_create(nfeatures=150)  # Reduced features for fast computation
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
-# -------------------------------------------------
-# OPTIONS
-# -------------------------------------------------
 FABRIC_OPTIONS = [
     "Viscose", "Cotton", "Georgette", "Chiffon", "Silk",
     "Linen", "Rayon", "Crepe", "Organza", "Net"
@@ -64,10 +61,10 @@ WORK_TYPE_OPTIONS = [
 ]
 
 # -------------------------------------------------
-# RAM-EFFICIENT & FAST IMAGE HELPER
+# RAM & SPEED OPTIMIZED HELPERS
 # -------------------------------------------------
-def save_stream_compressed(file_storage, dest_path, max_dim=500):
-    """Resizes file directly from memory stream to save RAM and time."""
+def save_stream_compressed(file_storage, dest_path, max_dim=400):
+    """Resizes and compresses images heavily before saving."""
     img = Image.open(file_storage.stream)
     img = img.convert("RGB")
     
@@ -79,9 +76,9 @@ def save_stream_compressed(file_storage, dest_path, max_dim=500):
         else:
             new_h = max_dim
             new_w = int(w * (max_dim / h))
-        img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        img = img.resize((new_w, new_h), Image.Resampling.NEAREST)
     
-    img.save(dest_path, "JPEG", quality=70, optimize=True)
+    img.save(dest_path, "JPEG", quality=65, optimize=True)
 
 def get_unique_filename(original_name):
     base_name = secure_filename(original_name) or "image.jpg"
@@ -115,19 +112,19 @@ def get_select_and_custom(existing_value, options):
     return "Other", existing_value
 
 # -------------------------------------------------
-# LIGHTWEIGHT & FAST OPENCV MATCHING
+# ULTRA FAST MATCHING ENGINE
 # -------------------------------------------------
 def build_patch_features(img):
     h, w = img.shape[:2]
-    if max(h, w) > 200:
-        scale = 200 / max(h, w)
+    if max(h, w) > 180:
+        scale = 180 / max(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     kp, des = orb.detectAndCompute(gray, None)
     
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    hist = cv2.calcHist([hsv], [0, 1], None, [8, 8], [0, 180, 0, 256])
+    hist = cv2.calcHist([hsv], [0, 1], None, [6, 6], [0, 180, 0, 256])
     cv2.normalize(hist, hist)
 
     return {"kp": kp, "des": des, "hist": hist}
@@ -147,7 +144,7 @@ def get_image_match_score(upload_path, db_path):
         if f1["des"] is not None and f2["des"] is not None and len(f1["des"]) >= 2 and len(f2["des"]) >= 2:
             try:
                 matches = bf_orb.knnMatch(f1["des"], f2["des"], k=2)
-                good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.78 * n.distance]
+                good = [m for pair in matches if len(pair) == 2 for m, n in [pair] if m.distance < 0.8 * n.distance]
                 base = min(len(f1["kp"]), len(f2["kp"]))
                 feat_score = (len(good) / base) * 100 if base > 0 else 0
             except Exception:
@@ -162,11 +159,10 @@ def get_image_match_score(upload_path, db_path):
         final_score = (feat_score * 0.7) + (hist_score * 0.3)
         return min(100, round(final_score * 1.8, 2))
     except Exception as e:
-        print("Match score calculation error:", e)
         return 0
 
 # -------------------------------------------------
-# MAIN ROUTES
+# ROUTES
 # -------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -186,8 +182,7 @@ def home():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], saved_upload_name)
 
             try:
-                # Fast Stream Compression
-                save_stream_compressed(file, filepath, max_dim=500)
+                save_stream_compressed(file, filepath, max_dim=400)
                 image_name = saved_upload_name
 
                 if action == "add":
@@ -199,28 +194,18 @@ def home():
                     occasion = request.form.get("occasion", "").strip()
                     notes = request.form.get("notes", "").strip()
 
-                    design_id = manual_design_id
-                    if not design_id:
-                        try:
-                            result = supabase.table("designs").select("id", count="exact").execute()
-                            total = result.count if result.count is not None else 0
-                            design_id = f"D{total + 1:05d}"
-                        except Exception:
-                            design_id = f"D{int(datetime.now().timestamp())}"
+                    design_id = manual_design_id or f"D{int(datetime.now().timestamp())}"
 
-                    # 1. Ultra-Fast Cloudinary Upload Optimization
+                    # Fast direct upload
                     upload_result = cloudinary.uploader.upload(
                         filepath,
                         folder="DesignFinder",
-                        quality="auto:low",
-                        fetch_format="auto"
+                        quality="30"
                     )
                     
-                    # 2. Local File Copy for Fast Matching Cache
                     db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
                     shutil.copy(filepath, db_local_path)
 
-                    # 3. Supabase Record Insertion
                     supabase.table("designs").insert({
                         "design_id": design_id,
                         "filename": saved_upload_name,
@@ -237,15 +222,19 @@ def home():
                     message = f"Design {design_id} added successfully!"
 
                 elif action == "search":
+                    # BATCH FETCH DB RECORDS (FAST)
+                    all_meta_res = supabase.table("designs").select("*").execute()
+                    meta_dict = {item["filename"]: item for item in (all_meta_res.data or [])}
+
                     if os.path.exists(DATABASE_FOLDER):
                         valid_files = [f for f in os.listdir(DATABASE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
+                        
                         for db_file in valid_files:
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 15:  # Reduced noise & DB query latency
-                                    res = supabase.table("designs").select("*").eq("filename", db_file).execute()
-                                    meta = res.data[0] if res.data else {}
+                                if score > 20:
+                                    meta = meta_dict.get(db_file, {})
                                     similar_images.append({
                                         "filename": db_file,
                                         "design_id": meta.get("design_id", "N/A"),
@@ -275,8 +264,7 @@ def gallery():
     try:
         response = supabase.table("designs").select("*").order("id", desc=True).execute()
         designs = response.data if response.data else []
-    except Exception as e:
-        print("Gallery Fetch Error:", e)
+    except Exception:
         designs = []
     return render_template("gallery.html", designs=designs, fabric_options=FABRIC_OPTIONS, work_type_options=WORK_TYPE_OPTIONS)
 
@@ -285,19 +273,14 @@ def dashboard():
     try:
         response = supabase.table("designs").select("*").order("id", desc=True).execute()
         designs = response.data if response.data else []
-    except Exception as e:
-        print("Dashboard Fetch Error:", e)
+    except Exception:
         designs = []
-
-    total_designs = len(designs)
-    fabric_count = len(set(d["fabric"] for d in designs if d.get("fabric")))
-    work_type_count = len(set(d["work_type"] for d in designs if d.get("work_type")))
 
     return render_template(
         "dashboard.html",
-        total_designs=total_designs,
-        total_fabric=fabric_count,
-        total_work_type=work_type_count,
+        total_designs=len(designs),
+        total_fabric=len(set(d["fabric"] for d in designs if d.get("fabric"))),
+        total_work_type=len(set(d["work_type"] for d in designs if d.get("work_type"))),
         recent_designs=designs[:10]
     )
 
@@ -337,13 +320,7 @@ def design_detail(filename):
     if not design:
         return redirect(url_for("gallery"))
 
-    return render_template(
-        "design_detail.html",
-        design=design,
-        previous_design=None,
-        next_design=None,
-        similar_designs=[]
-    )
+    return render_template("design_detail.html", design=design, previous_design=None, next_design=None, similar_designs=[])
 
 @app.route("/edit/<filename>", methods=["GET", "POST"])
 def edit_design(filename):
