@@ -11,7 +11,7 @@
         .hero-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border-radius: 15px; }
         .match-badge { position: absolute; top: 12px; right: 12px; font-weight: bold; padding: 6px 12px; border-radius: 20px; }
         
-        /* Details form is completely HIDDEN by default */
+        /* Details Section Initially Hidden */
         #details-section { display: none; }
     </style>
 </head>
@@ -80,7 +80,7 @@
                             <div id="file-name-display" class="form-text mt-3 fw-bold text-primary">No image selected yet.</div>
                         </div>
 
-                        <!-- Initial Action Buttons -->
+                        <!-- Buttons -->
                         <div class="d-flex gap-3 mb-2">
                             <button type="submit" name="action" value="search" class="btn btn-primary btn-lg flex-fill shadow-sm py-3">
                                 <i class="bi bi-search me-2"></i> Find Similar Design
@@ -90,7 +90,7 @@
                             </button>
                         </div>
 
-                        <!-- Step 2: Hidden Details Section (Opens ONLY on clicking 'Add To Database') -->
+                        <!-- Step 2: Hidden Specification Form (Opens ONLY on clicking 'Add To Database') -->
                         <div id="details-section" class="border-top pt-4 mt-4">
                             <h4 class="fw-bold mb-3 text-success"><i class="bi bi-file-earmark-plus me-2"></i>Design Details (for Add To Database)</h4>
                             
@@ -102,7 +102,7 @@
                                     <input type="text" name="design_id" class="form-control" placeholder="Auto-generated if left blank">
                                 </div>
 
-                                <!-- Fabric: Single 2-in-1 Box -->
+                                <!-- Fabric: Single 2-in-1 Box (Select + Type) -->
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Fabric</label>
                                     <input list="fabric_options" name="fabric" class="form-control" placeholder="Select or type custom fabric...">
@@ -120,7 +120,7 @@
                                     </datalist>
                                 </div>
 
-                                <!-- Work Type: Single 2-in-1 Box -->
+                                <!-- Work Type: Single 2-in-1 Box (Select + Type) -->
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Work Type</label>
                                     <input list="work_options" name="work_type" class="form-control" placeholder="Select or type custom work...">
@@ -220,14 +220,12 @@
     </div>
 
     <script>
-        // Reveal form section on "Add To Database" click
         function openAddForm() {
             const sec = document.getElementById('details-section');
             sec.style.display = 'block';
             sec.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Selected file name preview
         const camInput = document.getElementById('camera_image');
         const galInput = document.getElementById('gallery_image');
         const textDisp = document.getElementById('file-name-display');
