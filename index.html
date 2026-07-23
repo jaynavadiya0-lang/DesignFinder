@@ -3,129 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Design Finder</title>
+    <title>Design Finder - Smart Textile Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        .card-custom { border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        .hero-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border-radius: 15px; }
+        .img-preview { max-height: 250px; object-fit: contain; border-radius: 10px; }
+        .match-badge { position: absolute; top: 12px; right: 12px; font-weight: bold; padding: 6px 12px; border-radius: 20px; }
+    </style>
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="/">🎨 Design Finder</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link active" href="/">Home</a>
-                <a class="nav-link" href="/gallery">Gallery</a>
-                <a class="nav-link" href="/dashboard">Dashboard</a>
-                <a class="nav-link" href="/compare">Compare</a>
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-palette2 me-2"></i>Design Finder</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link active" href="/"><i class="bi bi-house-door me-1"></i> Home</a>
+                    <a class="nav-link" href="/gallery"><i class="bi bi-grid-3x3-gap me-1"></i> Gallery</a>
+                    <a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+                    <a class="nav-link" href="/compare"><i class="bi bi-intersect me-1"></i> Compare</a>
+                </div>
             </div>
         </div>
     </nav>
 
     <div class="container my-4">
+        
+        <!-- Top Hero Banner -->
+        <div class="p-4 p-md-5 hero-banner mb-4 shadow-sm text-center text-md-start">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="fw-bold mb-2">Smart Textile Design Finder</h1>
+                    <p class="lead mb-0">Search similar fabric designs using AI image matching or register new designs with complete specifications.</p>
+                </div>
+                <div class="col-md-4 text-center mt-3 mt-md-0 fs-1">
+                    ✨ 👗 🧵
+                </div>
+            </div>
+        </div>
+
         {% if message %}
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <div class="alert alert-info alert-dismissible fade show card-custom" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endif %}
 
-        <div class="card p-4 shadow-sm mb-4">
-            <h3 class="mb-3">Choose Design Image</h3>
-            <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                <div class="mb-3">
-                    <input type="file" name="camera_image" id="camera_image" accept="image/*" capture="environment" class="d-none">
-                    <input type="file" name="gallery_image" id="gallery_image" accept="image/*" class="d-none">
-                    
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-dark flex-fill" onclick="document.getElementById('camera_image').click()">📷 Open Camera</button>
-                        <button type="button" class="btn btn-primary flex-fill" onclick="document.getElementById('gallery_image').click()">🖼️ Choose from Gallery</button>
-                    </div>
-                    <div id="file-chosen-text" class="form-text mt-2 text-muted">No image selected yet.</div>
-                </div>
+        <div class="row g-4">
+            <!-- Left Upload Form -->
+            <div class="col-lg-12">
+                <div class="card card-custom p-4 bg-white">
+                    <form method="POST" enctype="multipart/form-data" id="designForm">
+                        
+                        <!-- Step 1: Image Capture -->
+                        <div class="mb-4 text-center border p-4 rounded-3 bg-light">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-camera me-2"></i>Step 1: Upload or Capture Design Image</h5>
+                            
+                            <input type="file" name="camera_image" id="camera_image" accept="image/*" capture="environment" class="d-none">
+                            <input type="file" name="gallery_image" id="gallery_image" accept="image/*" class="d-none">
+                            
+                            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                                <button type="button" class="btn btn-outline-dark btn-lg px-4" onclick="document.getElementById('camera_image').click()">
+                                    <i class="bi bi-camera-fill me-2"></i> Take Photo
+                                </button>
+                                <button type="button" class="btn btn-primary btn-lg px-4" onclick="document.getElementById('gallery_image').click()">
+                                    <i class="bi bi-images me-2"></i> Select From Gallery
+                                </button>
+                            </div>
+                            <div id="file-name-display" class="form-text mt-3 fw-bold text-primary">No image selected yet.</div>
+                        </div>
 
-                <div class="card p-3 mb-3 bg-light">
-                    <h5>Design Details (for Add To Database)</h5>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Fabric</label>
-                            <select name="fabric_select" class="form-select">
-                                <option value="">Select Fabric</option>
-                                {% for fab in fabric_options %}
-                                <option value="{{ fab }}">{{ fab }}</option>
-                                {% endfor %}
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Custom Fabric</label>
-                            <input type="text" name="fabric_custom" class="form-content form-control" placeholder="Enter custom fabric">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Work Type</label>
-                            <select name="work_type_select" class="form-select">
-                                <option value="">Select Work Type</option>
-                                {% for wt in work_type_options %}
-                                <option value="{{ wt }}">{{ wt }}</option>
-                                {% endfor %}
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Custom Work Type</label>
-                            <input type="text" name="work_type_custom" class="form-control" placeholder="Enter custom work type">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Color</label>
-                            <input type="text" name="color" class="form-control" placeholder="Color">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Occasion</label>
-                            <input type="text" name="occasion" class="form-control" placeholder="Occasion">
-                        </div>
-                    </div>
-                </div>
+                        <!-- Step 2: Complete Design Meta Information -->
+                        <h5 class="fw-bold mb-3"><i class="bi bi-file-earmark-text me-2"></i>Step 2: Enter Design Specifications</h5>
+                        <div class="row g-3">
+                            
+                            <!-- Design Number -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Design Number / ID</label>
+                                <input type="text" name="design_id" class="form-control" placeholder="Auto-generated if left blank (e.g. DES-101)">
+                            </div>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" name="action" value="search" class="btn btn-success flex-fill">🔍 Find Design</button>
-                    <button type="submit" name="action" value="add" class="btn btn-info text-white flex-fill">➕ Add To Database</button>
-                </div>
-            </form>
-        </div>
+                            <!-- Single Fabric Field (With Integrated Custom Text) -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Fabric Type</label>
+                                <select name="fabric_select" id="fabric_select" class="form-select" onchange="toggleCustomField('fabric')">
+                                    <option value="">-- Choose Fabric --</option>
+                                    {% for fab in fabric_options %}
+                                    <option value="{{ fab }}">{{ fab }}</option>
+                                    {% endfor %}
+                                    <option value="Other">➕ Other (Type Custom Fabric)</option>
+                                </select>
+                                <input type="text" name="fabric_custom" id="fabric_custom" class="form-control mt-2 d-none" placeholder="Enter custom fabric name...">
+                            </div>
 
-        {% if similar_images %}
-        <h3 class="mt-4 mb-3">Matching Results</h3>
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            {% for img in similar_images %}
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    <!-- Direct Cloudinary Image Link Render -->
-                    <img src="{{ img.image_url if img.image_url else url_for('database_file', filename=img.filename) }}" class="card-img-top" alt="Design Result" style="height: 220px; object-fit: cover;">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold">{{ img.design_id }}</h5>
-                        <p class="badge bg-success fs-6">Match: {{ img.score }}%</p>
-                        <p class="card-text mb-1"><strong>Fabric:</strong> {{ img.fabric }}</p>
-                        <p class="card-text mb-1"><strong>Work:</strong> {{ img.work_type }}</p>
-                    </div>
-                    <div class="card-footer bg-white border-0">
-                        <a href="/design/{{ img.filename }}" class="btn btn-outline-primary btn-sm w-100">View Full Details</a>
-                    </div>
+                            <!-- Single Work Type Field (With Integrated Custom Text) -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Work / Pattern Type</label>
+                                <select name="work_type_select" id="work_type_select" class="form-select" onchange="toggleCustomField('work_type')">
+                                    <option value="">-- Choose Work Type --</option>
+                                    {% for wt in work_type_options %}
+                                    <option value="{{ wt }}">{{ wt }}</option>
+                                    {% endfor %}
+                                    <option value="Other">➕ Other (Type Custom Work)</option>
+                                </select>
+                                <input type="text" name="work_type_custom" id="work_type_custom" class="form-control mt-2 d-none" placeholder="Enter custom work type...">
+                            </div>
+
+                            <!-- Stitch Type -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Stitch Type</label>
+                                <select name="stitch" class="form-select">
+                                    <option value="">-- Choose Stitch Type --</option>
+                                    {% for st in stitch_options %}
+                                    <option value="{{ st }}">{{ st }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Color -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Color / Shade</label>
+                                <input type="text" name="color" class="form-control" placeholder="e.g. Royal Blue, Multi, Pink">
+                            </div>
+
+                            <!-- Occasion -->
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Occasion / Season</label>
+                                <input type="text" name="occasion" class="form-control" placeholder="e.g. Bridal, Partywear, Casual">
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Additional Notes / Description</label>
+                                <textarea name="notes" class="form-control" rows="2" placeholder="Write any additional details, thread count, price code, etc."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3 mt-4">
+                            <button type="submit" name="action" value="search" class="btn btn-success btn-lg flex-fill shadow-sm">
+                                <i class="bi bi-search me-2"></i> Find Matching Design
+                            </button>
+                            <button type="submit" name="action" value="add" class="btn btn-primary btn-lg flex-fill shadow-sm">
+                                <i class="bi bi-plus-circle me-2"></i> Add To Database
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            {% endfor %}
+        </div>
+
+        <!-- Search Results Grid -->
+        {% if similar_images %}
+        <div class="mt-5">
+            <h3 class="fw-bold mb-4 text-dark"><i class="bi bi-check-circle-fill text-success me-2"></i> Matching Search Results</h3>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for img in similar_images %}
+                <div class="col">
+                    <div class="card h-100 card-custom position-relative bg-white overflow-hidden">
+                        <span class="badge bg-success match-badge shadow-sm"><i class="bi bi-lightning-charge-fill me-1"></i>{{ img.score }}% Match</span>
+                        <img src="{{ img.image_url if img.image_url else url_for('database_file', filename=img.filename) }}" class="card-img-top" alt="Design Result" style="height: 240px; object-fit: cover;">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold text-primary">{{ img.design_id }}</h5>
+                            <hr class="my-2">
+                            <div class="row g-2 fs-6">
+                                <div class="col-6"><strong>Fabric:</strong> {{ img.fabric }}</div>
+                                <div class="col-6"><strong>Work:</strong> {{ img.work_type }}</div>
+                                <div class="col-6"><strong>Color:</strong> {{ img.color }}</div>
+                                <div class="col-6"><strong>Stitch:</strong> {{ img.stitch }}</div>
+                            </div>
+                            {% if img.notes %}
+                            <p class="card-text text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>{{ img.notes }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-white border-0 pb-3">
+                            <a href="/design/{{ img.filename }}" class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-eye me-1"></i> View Full Details</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
         {% endif %}
+
     </div>
 
     <script>
+        // Toggle single dropdown custom input field automatically
+        function toggleCustomField(type) {
+            const selectElem = document.getElementById(type + '_select');
+            const customElem = document.getElementById(type + '_custom');
+            if (selectElem.value === 'Other') {
+                customElem.classList.remove('d-none');
+                customElem.focus();
+            } else {
+                customElem.classList.add('d-none');
+                customElem.value = '';
+            }
+        }
+
+        // File Selection Text Display
         const camInput = document.getElementById('camera_image');
         const galInput = document.getElementById('gallery_image');
-        const textDisp = document.getElementById('file-chosen-text');
+        const textDisp = document.getElementById('file-name-display');
 
         camInput.addEventListener('change', function(){
-            if(this.files && this.files[0]) textDisp.innerText = "Selected: " + this.files[0].name;
+            if(this.files && this.files[0]) textDisp.innerHTML = "<i class='bi bi-check-lg text-success me-1'></i> Photo Selected: <strong>" + this.files[0].name + "</strong>";
         });
         galInput.addEventListener('change', function(){
-            if(this.files && this.files[0]) textDisp.innerText = "Selected: " + this.files[0].name;
+            if(this.files && this.files[0]) textDisp.innerHTML = "<i class='bi bi-check-lg text-success me-1'></i> Gallery Image Selected: <strong>" + this.files[0].name + "</strong>";
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
