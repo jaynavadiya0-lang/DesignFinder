@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,8 +10,9 @@
         .card-custom { border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
         .hero-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border-radius: 15px; }
         .match-badge { position: absolute; top: 12px; right: 12px; font-weight: bold; padding: 6px 12px; border-radius: 20px; }
-        /* Add Details Form initially hidden */
-        #add-details-section { display: none; }
+        
+        /* Details form is completely HIDDEN by default */
+        #details-section { display: none; }
     </style>
 </head>
 <body class="bg-light">
@@ -61,7 +62,7 @@
                 <div class="card card-custom p-4 bg-white">
                     <form method="POST" enctype="multipart/form-data" id="designForm">
                         
-                        <!-- Step 1: Image Input -->
+                        <!-- Step 1: Image Upload -->
                         <div class="mb-4 text-center border p-4 rounded-3 bg-light">
                             <h5 class="fw-bold mb-3"><i class="bi bi-camera me-2"></i>Select or Capture Design Image</h5>
                             
@@ -70,93 +71,110 @@
                             
                             <div class="d-flex justify-content-center gap-3 flex-wrap">
                                 <button type="button" class="btn btn-outline-dark btn-lg px-4" onclick="document.getElementById('camera_image').click()">
-                                    <i class="bi bi-camera-fill me-2"></i> Camera
+                                    <i class="bi bi-camera-fill me-2"></i> Open Camera
                                 </button>
                                 <button type="button" class="btn btn-primary btn-lg px-4" onclick="document.getElementById('gallery_image').click()">
-                                    <i class="bi bi-images me-2"></i> Gallery
+                                    <i class="bi bi-images me-2"></i> Choose from Gallery
                                 </button>
                             </div>
                             <div id="file-name-display" class="form-text mt-3 fw-bold text-primary">No image selected yet.</div>
                         </div>
 
-                        <!-- Main Primary Action Buttons -->
-                        <div class="d-flex gap-3 mb-3">
-                            <button type="submit" name="action" value="search" class="btn btn-success btn-lg flex-fill shadow-sm">
-                                <i class="bi bi-search me-2"></i> Search Similar Design
+                        <!-- Initial Action Buttons -->
+                        <div class="d-flex gap-3 mb-2">
+                            <button type="submit" name="action" value="search" class="btn btn-primary btn-lg flex-fill shadow-sm py-3">
+                                <i class="bi bi-search me-2"></i> Find Similar Design
                             </button>
-                            <button type="button" id="toggleAddBtn" class="btn btn-primary btn-lg flex-fill shadow-sm" onclick="showDatabaseDetails()">
+                            <button type="button" class="btn btn-success btn-lg flex-fill shadow-sm py-3" onclick="openAddForm()">
                                 <i class="bi bi-plus-circle me-2"></i> Add To Database
                             </button>
                         </div>
 
-                        <!-- Step 2: Hidden Specification Form (Shows ONLY when 'Add To Database' is clicked) -->
-                        <div id="add-details-section" class="border-top pt-4 mt-4">
-                            <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-file-earmark-text me-2"></i>Enter Design Details</h5>
+                        <!-- Step 2: Hidden Details Section (Opens ONLY on clicking 'Add To Database') -->
+                        <div id="details-section" class="border-top pt-4 mt-4">
+                            <h4 class="fw-bold mb-3 text-success"><i class="bi bi-file-earmark-plus me-2"></i>Design Details (for Add To Database)</h4>
                             
                             <div class="row g-3">
                                 
-                                <!-- Design ID -->
+                                <!-- Design Number -->
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Design Number / ID</label>
                                     <input type="text" name="design_id" class="form-control" placeholder="Auto-generated if left blank">
                                 </div>
 
-                                <!-- Fabric 2-in-1 Single Input (Type or Select) -->
+                                <!-- Fabric: Single 2-in-1 Box -->
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Fabric Type</label>
-                                    <input list="fabric_list" name="fabric_select" class="form-control" placeholder="Type or select fabric...">
-                                    <datalist id="fabric_list">
-                                        {% for fab in fabric_options %}
-                                        <option value="{{ fab }}">
-                                        {% endfor %}
+                                    <label class="form-label fw-bold">Fabric</label>
+                                    <input list="fabric_options" name="fabric" class="form-control" placeholder="Select or type custom fabric...">
+                                    <datalist id="fabric_options">
+                                        <option value="Viscose">
+                                        <option value="Cotton">
+                                        <option value="Georgette">
+                                        <option value="Chiffon">
+                                        <option value="Silk">
+                                        <option value="Linen">
+                                        <option value="Rayon">
+                                        <option value="Crepe">
+                                        <option value="Organza">
+                                        <option value="Net">
                                     </datalist>
                                 </div>
 
-                                <!-- Work Type 2-in-1 Single Input (Type or Select) -->
+                                <!-- Work Type: Single 2-in-1 Box -->
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Work / Pattern Type</label>
-                                    <input list="work_type_list" name="work_type_select" class="form-control" placeholder="Type or select work type...">
-                                    <datalist id="work_type_list">
-                                        {% for wt in work_type_options %}
-                                        <option value="{{ wt }}">
-                                        {% endfor %}
+                                    <label class="form-label fw-bold">Work Type</label>
+                                    <input list="work_options" name="work_type" class="form-control" placeholder="Select or type custom work...">
+                                    <datalist id="work_options">
+                                        <option value="Floral">
+                                        <option value="Butta">
+                                        <option value="Jaal">
+                                        <option value="Border">
+                                        <option value="Pallu">
+                                        <option value="Allover">
+                                        <option value="Embroidery">
+                                        <option value="Printed">
+                                        <option value="Weaving">
+                                        <option value="Traditional">
                                     </datalist>
                                 </div>
 
-                                <!-- Stitch Type -->
+                                <!-- Stitch Box -->
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Stitch Type</label>
+                                    <label class="form-label fw-bold">Stitch</label>
                                     <select name="stitch" class="form-select">
-                                        <option value="">-- Select Stitch --</option>
-                                        {% for st in stitch_options %}
-                                        <option value="{{ st }}">{{ st }}</option>
-                                        {% endfor %}
+                                        <option value="">Select Stitch Type</option>
+                                        <option value="Unstitched">Unstitched</option>
+                                        <option value="Semi-Stitched">Semi-Stitched</option>
+                                        <option value="Fully Stitched">Fully Stitched</option>
+                                        <option value="Dress Material">Dress Material</option>
+                                        <option value="Saree">Saree</option>
+                                        <option value="Lehenga">Lehenga</option>
                                     </select>
                                 </div>
 
                                 <!-- Color -->
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Color / Shade</label>
-                                    <input type="text" name="color" class="form-control" placeholder="e.g. Royal Blue, Red">
+                                    <label class="form-label fw-bold">Color</label>
+                                    <input type="text" name="color" class="form-control" placeholder="Ex. Red, Blue, Maroon">
                                 </div>
 
                                 <!-- Occasion -->
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Occasion / Season</label>
-                                    <input type="text" name="occasion" class="form-control" placeholder="e.g. Bridal, Partywear">
+                                    <label class="form-label fw-bold">Occasion</label>
+                                    <input type="text" name="occasion" class="form-control" placeholder="Ex. Wedding, Party">
                                 </div>
 
                                 <!-- Notes -->
                                 <div class="col-md-12">
-                                    <label class="form-label fw-bold">Additional Notes / Description</label>
-                                    <textarea name="notes" class="form-control" rows="2" placeholder="Write any additional details..."></textarea>
+                                    <label class="form-label fw-bold">Notes</label>
+                                    <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
                                 </div>
                             </div>
 
-                            <!-- Final Confirm Save Button -->
+                            <!-- Final Save Button -->
                             <div class="mt-4 text-end">
-                                <button type="submit" name="action" value="add" class="btn btn-primary btn-lg px-5 shadow-sm">
-                                    <i class="bi bi-save me-2"></i> Save Design
+                                <button type="submit" name="action" value="add" class="btn btn-success btn-lg px-5 shadow-sm">
+                                    <i class="bi bi-check-circle me-2"></i> Save To Database Now
                                 </button>
                             </div>
                         </div>
@@ -202,14 +220,14 @@
     </div>
 
     <script>
-        // Shows the details section when 'Add To Database' is clicked
-        function showDatabaseDetails() {
-            const section = document.getElementById('add-details-section');
-            section.style.display = 'block';
-            section.scrollIntoView({ behavior: 'smooth' });
+        // Reveal form section on "Add To Database" click
+        function openAddForm() {
+            const sec = document.getElementById('details-section');
+            sec.style.display = 'block';
+            sec.scrollIntoView({ behavior: 'smooth' });
         }
 
-        // Display selected file name
+        // Selected file name preview
         const camInput = document.getElementById('camera_image');
         const galInput = document.getElementById('gallery_image');
         const textDisp = document.getElementById('file-name-display');
