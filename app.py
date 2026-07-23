@@ -194,16 +194,18 @@ def home():
                 image_name = saved_upload_name
 
                 if action == "add":
-                    fabric = process_single_dropdown_field("fabric")
-                    work_type = process_single_dropdown_field("work_type")
+                    # Ek hi single box se value read hogi
+                    fabric = request.form.get("fabric", "").strip()
+                    work_type = request.form.get("work_type", "").strip()
                     stitch = request.form.get("stitch", "").strip()
                     manual_design_id = request.form.get("design_id", "").strip()
                     color = request.form.get("color", "").strip()
                     occasion = request.form.get("occasion", "").strip()
                     notes = request.form.get("notes", "").strip()
 
-                    # Auto Generate Design ID if left blank
                     design_id = manual_design_id or f"DES-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+                    # Cloudinary & Supabase Save...
 
                     upload_result = cloudinary.uploader.upload(
                         filepath,
