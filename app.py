@@ -37,7 +37,7 @@ TEMPLATES_FOLDER = "templates"
 STATIC_FOLDER = "static"
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # Reduced to 10 MB limit for RAM safety
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB RAM Safety
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATABASE_FOLDER, exist_ok=True)
@@ -45,9 +45,9 @@ os.makedirs(TEMPLATES_FOLDER, exist_ok=True)
 os.makedirs(STATIC_FOLDER, exist_ok=True)
 
 # -------------------------------------------------
-# FEATURE DETECTORS
+# FAST FEATURE DETECTORS
 # -------------------------------------------------
-orb = cv2.ORB_create(nfeatures=250)
+orb = cv2.ORB_create(nfeatures=200)
 bf_orb = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 
 # -------------------------------------------------
@@ -64,10 +64,10 @@ WORK_TYPE_OPTIONS = [
 ]
 
 # -------------------------------------------------
-# RAM-EFFICIENT IMAGE SAVER
+# RAM-EFFICIENT & FAST IMAGE HELPER
 # -------------------------------------------------
-def save_stream_compressed(file_storage, dest_path, max_dim=600):
-    """Directly resizes file stream without allocating high memory."""
+def save_stream_compressed(file_storage, dest_path, max_dim=500):
+    """Resizes file directly from memory stream to save RAM and time."""
     img = Image.open(file_storage.stream)
     img = img.convert("RGB")
     
@@ -81,7 +81,7 @@ def save_stream_compressed(file_storage, dest_path, max_dim=600):
             new_w = int(w * (max_dim / h))
         img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
-    img.save(dest_path, "JPEG", quality=75, optimize=True)
+    img.save(dest_path, "JPEG", quality=70, optimize=True)
 
 def get_unique_filename(original_name):
     base_name = secure_filename(original_name) or "image.jpg"
@@ -115,12 +115,12 @@ def get_select_and_custom(existing_value, options):
     return "Other", existing_value
 
 # -------------------------------------------------
-# LIGHTWEIGHT OPENCV MATCHING
+# LIGHTWEIGHT & FAST OPENCV MATCHING
 # -------------------------------------------------
 def build_patch_features(img):
     h, w = img.shape[:2]
-    if max(h, w) > 250:
-        scale = 250 / max(h, w)
+    if max(h, w) > 200:
+        scale = 200 / max(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -186,8 +186,8 @@ def home():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], saved_upload_name)
 
             try:
-                # Compression on initial stream read
-                save_stream_compressed(file, filepath, max_dim=600)
+                # Fast Stream Compression
+                save_stream_compressed(file, filepath, max_dim=500)
                 image_name = saved_upload_name
 
                 if action == "add":
@@ -208,14 +208,19 @@ def home():
                         except Exception:
                             design_id = f"D{int(datetime.now().timestamp())}"
 
-                    # 1. Cloudinary upload
-                    upload_result = cloudinary.uploader.upload(filepath, folder="DesignFinder")
+                    # 1. Ultra-Fast Cloudinary Upload Optimization
+                    upload_result = cloudinary.uploader.upload(
+                        filepath,
+                        folder="DesignFinder",
+                        quality="auto:low",
+                        fetch_format="auto"
+                    )
                     
-                    # 2. Local File Copy for OpenCV
+                    # 2. Local File Copy for Fast Matching Cache
                     db_local_path = os.path.join(DATABASE_FOLDER, saved_upload_name)
                     shutil.copy(filepath, db_local_path)
 
-                    # 3. Supabase Entry
+                    # 3. Supabase Record Insertion
                     supabase.table("designs").insert({
                         "design_id": design_id,
                         "filename": saved_upload_name,
@@ -233,11 +238,12 @@ def home():
 
                 elif action == "search":
                     if os.path.exists(DATABASE_FOLDER):
-                        for db_file in os.listdir(DATABASE_FOLDER):
+                        valid_files = [f for f in os.listdir(DATABASE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
+                        for db_file in valid_files:
                             db_path = os.path.join(DATABASE_FOLDER, db_file)
                             if os.path.isfile(db_path):
                                 score = get_image_match_score(filepath, db_path)
-                                if score > 5:
+                                if score > 15:  # Reduced noise & DB query latency
                                     res = supabase.table("designs").select("*").eq("filename", db_file).execute()
                                     meta = res.data[0] if res.data else {}
                                     similar_images.append({
