@@ -2,11 +2,10 @@ import os
 import io
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request
 from PIL import Image
 import numpy as np
 
-# Database & Storage Integrations
 import cloudinary
 import cloudinary.uploader
 from supabase import create_client, Client
@@ -14,9 +13,7 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.secret_key = "smart_textile_design_finder_secret_key"
 
-# ---------------------------------------------------------
-# 1. Configuration (Cloudinary & Supabase Setup)
-# ---------------------------------------------------------
+# Configurations
 SUPABASE_URL = os.getenv("SUPABASE_URL", "YOUR_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
 
@@ -32,21 +29,11 @@ cloudinary.config(
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
-
-# ---------------------------------------------------------
-# 2. Lightweight Feature Extraction (No Heavy PyTorch Needed)
-# ---------------------------------------------------------
 def extract_simple_features(image_bytes):
-    """
-    Image ko 16x16 pixels me resize karke normalized RGB feature vector banata hai.
-    Yeh Render par fast chalta hai aur search button ko working banata hai.
-    """
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         image = image.resize((16, 16))
         arr = np.array(image, dtype=np.float32).flatten()
-        
-        # Vector Normalization
         norm = np.linalg.norm(arr)
         if norm > 0:
             arr = arr / norm
@@ -56,32 +43,20 @@ def extract_simple_features(image_bytes):
         return None
 
 def cosine_similarity(vec1, vec2):
-    """Do vectors ke beech Cosine Similarity calculate karta hai"""
     try:
         a = np.array(vec1, dtype=np.float32)
         b = np.array(vec2, dtype=np.float32)
-        
-        # Standardize vector length if lengths differ
         if len(a) != len(b):
             return 0.0
-            
         dot_product = np.dot(a, b)
         norm_a = np.linalg.norm(a)
         norm_b = np.linalg.norm(b)
-        
         if norm_a == 0 or norm_b == 0:
             return 0.0
-            
-        sim = dot_product / (norm_a * norm_b)
-        return float(sim)
-    except Exception as e:
-        print(f"Similarity Calculation Error: {e}")
+        return float(dot_product / (norm_a * norm_b))
+    except Exception:
         return 0.0
 
-
-# ---------------------------------------------------------
-# 3. Main Route (Index Page)
-# ---------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     message = None
@@ -90,7 +65,6 @@ def index():
     if request.method == "POST":
         action = request.form.get("action")
 
-        # Camera aur Gallery dono Inputs Handle karein
         cam_file = request.files.get("camera_image")
         gal_file = request.files.get("gallery_image")
         
@@ -100,9 +74,7 @@ def index():
         elif gal_file and gal_file.filename != '':
             selected_file = gal_file
 
-        # =========================================================
-        # ACTION 1: FIND SIMILAR DESIGN
-        # =========================================================
+        # --- FIND SIMILAR DESIGN ---
         if action == "search":
             if not selected_file:
                 message = "Kripya search karne ke liye camera ya gallery se photo select karein!"
@@ -114,7 +86,6 @@ def index():
                     if query_features is None:
                         message = "Image read nahi ho saki, kripya doosri photo try karein."
                     else:
-                        # Supabase Database se saare records mangwayein
                         response = supabase.table("designs").select("*").execute()
                         db_records = response.data if response and hasattr(response, 'data') else []
 
@@ -122,7 +93,6 @@ def index():
                         for record in db_records:
                             raw_emb = record.get("embedding")
                             if raw_emb:
-                                # String ya JSON list parsing check
                                 if isinstance(raw_emb, str):
                                     try:
                                         db_vec = json.loads(raw_emb)
@@ -134,28 +104,22 @@ def index():
                                 if isinstance(db_vec, list) and len(db_vec) > 0:
                                     score = cosine_similarity(query_features, db_vec)
                                     match_percentage = round(score * 100, 2)
+                                    record['score'] = match_percentage
+                                    results.append(record)
 
-                                    # Minimum 20% match hone par show karo
-                                    if match_percentage >= 20.0:
-                                        record['score'] = match_percentage
-                                        results.append(record)
-
-                        # Match Percentage ke mutabiq Sort karein (Highest First)
+                        # Match Percentage ke mutabiq Sort karein
                         results = sorted(results, key=lambda x: x['score'], reverse=True)
                         similar_images = results[:12]
 
                         if not similar_images:
-                            message = "Koyi milta-julta design nahi mila."
+                            message = "Database me koi bhi design feature nahi mila. Pehle design add karein!"
                         else:
-                            message = f"{len(similar_images)} matching designs mile!"
+                            message = f"{len(similar_images)} designs me se best match results neeche dikh rahe hain!"
 
                 except Exception as e:
-                    print(f"Search Execution Error: {e}")
                     message = f"Search Error: {str(e)}"
 
-        # =========================================================
-        # ACTION 2: ADD TO DATABASE
-        # =========================================================
+        # --- ADD TO DATABASE ---
         elif action == "add":
             if not selected_file:
                 message = "Database me add karne ke liye photo zaroori hai!"
@@ -164,14 +128,9 @@ def index():
                     img_bytes = selected_file.read()
                     features = extract_simple_features(img_bytes)
 
-                    # Cloudinary Upload
-                    upload_result = cloudinary.uploader.upload(
-                        img_bytes, 
-                        folder="design_finder_db"
-                    )
+                    upload_result = cloudinary.uploader.upload(img_bytes, folder="design_finder_db")
                     image_url = upload_result.get("secure_url")
 
-                    # Custom Design ID ("123 shubham" wagera accept karega)
                     custom_design_id = request.form.get("design_id", "").strip()
                     if not custom_design_id:
                         custom_design_id = f"DES-{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -181,7 +140,7 @@ def index():
                         "image_url": image_url,
                         "fabric": request.form.get("fabric", "").strip(),
                         "work_type": request.form.get("work_type", "").strip(),
-                        "stitch": request.form.get("stitch", "").strip(), # Custom stitch number e.g. 100000
+                        "stitch": request.form.get("stitch", "").strip(),
                         "color": request.form.get("color", "").strip(),
                         "occasion": request.form.get("occasion", "").strip(),
                         "notes": request.form.get("notes", "").strip(),
@@ -193,15 +152,10 @@ def index():
                     message = f"Design '{custom_design_id}' safaltapoorvak save ho gaya!"
 
                 except Exception as e:
-                    print(f"Database Save Error: {e}")
                     message = f"Save Error: {str(e)}"
 
     return render_template("index.html", message=message, similar_images=similar_images)
 
-
-# ---------------------------------------------------------
-# 4. Secondary Routes (Gallery & Dashboard)
-# ---------------------------------------------------------
 @app.route("/gallery")
 def gallery():
     try:
@@ -221,17 +175,6 @@ def dashboard():
         designs = []
         total_count = 0
     return render_template("dashboard.html", total_count=total_count, designs=designs)
-
-@app.route("/design/<filename_or_id>")
-def design_detail(filename_or_id):
-    try:
-        response = supabase.table("designs").select("*").eq("design_id", filename_or_id).execute()
-        data = response.data if response and hasattr(response, 'data') else []
-        design = data[0] if data else None
-    except Exception:
-        design = None
-    return render_template("detail.html", design=design)
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
