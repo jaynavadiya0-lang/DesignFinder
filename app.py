@@ -30,10 +30,9 @@ cloudinary.config(
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 def get_image_hash(image_bytes):
-    """Calculates perceptual hash for fast similarity comparison"""
+    """Calculates perceptual hash for fast image similarity comparison"""
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        # Generate perceptual hash
         phash = imagehash.phash(image)
         return str(phash)
     except Exception as e:
@@ -41,7 +40,7 @@ def get_image_hash(image_bytes):
         return None
 
 def calculate_similarity(hash1, hash2):
-    """Calculates match percentage between two hashes"""
+    """Calculates percentage match between two image hashes"""
     try:
         h1 = imagehash.hex_to_hash(hash1)
         h2 = imagehash.hex_to_hash(hash2)
@@ -68,30 +67,32 @@ def index():
         elif gal_file and gal_file.filename != '':
             selected_file = gal_file
 
-        # SEARCH LOGIC
+        # --- FIND SIMILAR DESIGN LOGIC ---
         if action == "search":
             if not selected_file:
-                message = "Kripya image select karein!"
+                message = "Kripya search karne ke liye pehle image select karein!"
             else:
                 try:
                     img_bytes = selected_file.read()
                     query_hash = get_image_hash(img_bytes)
 
                     if not query_hash:
-                        message = "Image process nahi ho saki."
+                        message = "Image process nahi ho saki. Kripya doosri image try karein."
                     else:
                         response = supabase.table("designs").select("*").execute()
                         db_records = response.data if response and hasattr(response, 'data') else []
 
                         results = []
                         for record in db_records:
-                            db_hash = record.get("embedding") # Using hash stored in embedding field
+                            db_hash = record.get("embedding")
                             if db_hash:
                                 score = calculate_similarity(query_hash, db_hash)
-                                if score >= 30.0:
+                                # Show matching designs above 25% similarity
+                                if score >= 25.0:
                                     record['score'] = score
                                     results.append(record)
 
+                        # Higher score matches first
                         results = sorted(results, key=lambda x: x['score'], reverse=True)
                         similar_images = results[:12]
 
@@ -101,20 +102,23 @@ def index():
                             message = f"{len(similar_images)} matching designs mile!"
 
                 except Exception as e:
-                    message = f"Search Error: {str(e)}"
+                    print(f"Search Error: {e}")
+                    message = f"Search karne me error aaya: {str(e)}"
 
-        # ADD TO DATABASE LOGIC
+        # --- ADD TO DATABASE LOGIC ---
         elif action == "add":
             if not selected_file:
-                message = "Database me add karne ke liye photo select karein!"
+                message = "Database me add karne ke liye photo select/capture karein!"
             else:
                 try:
                     img_bytes = selected_file.read()
                     img_hash = get_image_hash(img_bytes)
 
+                    # Cloudinary upload
                     upload_result = cloudinary.uploader.upload(img_bytes, folder="design_finder_db")
                     image_url = upload_result.get("secure_url")
 
+                    # Custom Design ID (e.g., "123 shubham")
                     custom_design_id = request.form.get("design_id", "").strip()
                     if not custom_design_id:
                         custom_design_id = f"DES-{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -133,10 +137,11 @@ def index():
                     }
 
                     supabase.table("designs").insert(db_payload).execute()
-                    message = f"Design '{custom_design_id}' successful save ho gaya!"
+                    message = f"Design '{custom_design_id}' safaltapoorvak database me add ho gaya!"
 
                 except Exception as e:
-                    message = f"Save Error: {str(e)}"
+                    print(f"Save Error: {e}")
+                    message = f"Database me save nahi ho saka: {str(e)}"
 
     return render_template("index.html", message=message, similar_images=similar_images)
 
