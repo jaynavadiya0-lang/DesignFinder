@@ -1,8 +1,9 @@
+--find-links https://download.pytorch.org/whl/cpu/torch_stable.html
+torch==2.2.0+cpu
+torchvision==0.17.0+cpu
 Flask
-gunicorn
-opencv-contrib-python-headless==4.10.0.84
-numpy==2.2.6
-Pillow
+pillow
+numpy
 cloudinary
 supabase
-requests
+gunicorn
