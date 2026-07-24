@@ -2,7 +2,7 @@ import os
 import io
 import json
 from datetime import datetime
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
 from PIL import Image
 import numpy as np
 
@@ -13,7 +13,9 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.secret_key = "smart_textile_design_finder_secret_key"
 
-# Configurations
+# ---------------------------------------------------------
+# 1. Configuration (Cloudinary & Supabase)
+# ---------------------------------------------------------
 SUPABASE_URL = os.getenv("SUPABASE_URL", "YOUR_SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
 
@@ -29,6 +31,9 @@ cloudinary.config(
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
+# ---------------------------------------------------------
+# 2. Image Feature Extraction & Similarity
+# ---------------------------------------------------------
 def extract_simple_features(image_bytes):
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
@@ -57,6 +62,9 @@ def cosine_similarity(vec1, vec2):
     except Exception:
         return 0.0
 
+# ---------------------------------------------------------
+# 3. Main Route (Index) - Search & Add Logic
+# ---------------------------------------------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     message = None
@@ -74,7 +82,7 @@ def index():
         elif gal_file and gal_file.filename != '':
             selected_file = gal_file
 
-        # --- FIND SIMILAR DESIGN ---
+        # --- ACTION: SEARCH SIMILAR DESIGN ---
         if action == "search":
             if not selected_file:
                 message = "Kripya search karne ke liye camera ya gallery se photo select karein!"
@@ -107,19 +115,18 @@ def index():
                                     record['score'] = match_percentage
                                     results.append(record)
 
-                        # Match Percentage ke mutabiq Sort karein
                         results = sorted(results, key=lambda x: x['score'], reverse=True)
                         similar_images = results[:12]
 
                         if not similar_images:
-                            message = "Database me koi bhi design feature nahi mila. Pehle design add karein!"
+                            message = "Database me koi bhi design matching nahi mila. Pehle design add karein!"
                         else:
-                            message = f"{len(similar_images)} designs me se best match results neeche dikh rahe hain!"
+                            message = f"{len(similar_images)} designs me se matching results neeche dikh rahe hain!"
 
                 except Exception as e:
                     message = f"Search Error: {str(e)}"
 
-        # --- ADD TO DATABASE ---
+        # --- ACTION: ADD TO DATABASE ---
         elif action == "add":
             if not selected_file:
                 message = "Database me add karne ke liye photo zaroori hai!"
@@ -156,6 +163,9 @@ def index():
 
     return render_template("index.html", message=message, similar_images=similar_images)
 
+# ---------------------------------------------------------
+# 4. Secondary Routes (Gallery, Dashboard & Delete)
+# ---------------------------------------------------------
 @app.route("/gallery")
 def gallery():
     try:
@@ -175,6 +185,28 @@ def dashboard():
         designs = []
         total_count = 0
     return render_template("dashboard.html", total_count=total_count, designs=designs)
+
+@app.route("/design/<filename_or_id>")
+def design_detail(filename_or_id):
+    try:
+        response = supabase.table("designs").select("*").eq("design_id", filename_or_id).execute()
+        data = response.data if response and hasattr(response, 'data') else []
+        design = data[0] if data else None
+    except Exception:
+        design = None
+    return render_template("detail.html", design=design)
+
+# --- DELETE ROUTE (FIXED FOR NONE ISSUE) ---
+@app.route("/delete/<design_id>", methods=["GET", "POST"])
+def delete_design(design_id):
+    try:
+        if supabase and design_id and str(design_id).lower() != "none":
+            supabase.table("designs").delete().eq("design_id", design_id).execute()
+            print(f"Design {design_id} deleted successfully.")
+    except Exception as e:
+        print(f"Delete Error: {e}")
+    
+    return redirect(url_for("gallery"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
