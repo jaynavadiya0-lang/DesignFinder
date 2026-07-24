@@ -3,458 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Design Finder</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
+    <h1 style="color:red">TEST VERSION 2026</h1>
+    <title>Design Finder - Smart Textile Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body{
-            background: #f6f7fb;
-            font-family: Arial, Helvetica, sans-serif;
-        }
-
-        .topbar{
-            background: #111827;
-            padding: 14px 0;
-        }
-
-        .topbar a{
-            color: #fff;
-            text-decoration: none;
-            margin-right: 16px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .hero-card{
-            background: #fff;
-            border-radius: 18px;
-            padding: 22px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-        }
-
-        .upload-box{
-            border: 2px dashed #d5d9e2;
-            border-radius: 18px;
-            padding: 22px;
-            background: #fafbff;
-        }
-
-        .hidden-input{
-            display: none;
-        }
-
-        .pick-btn{
-            border: none;
-            border-radius: 16px;
-            padding: 16px 18px;
-            font-weight: 700;
-            width: 100%;
-            transition: 0.2s ease;
-        }
-
-        .pick-btn:hover{
-            transform: translateY(-1px);
-        }
-
-        .camera-btn{
-            background: #111827;
-            color: #fff;
-        }
-
-        .gallery-btn{
-            background: #eef2ff;
-            color: #111827;
-            border: 1px solid #dbe4ff;
-        }
-
-        .selected-file{
-            background: #fff;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin-top: 14px;
-            font-size: 14px;
-            color: #374151;
-        }
-
-        .section-card{
-            background: #fff;
-            border-radius: 18px;
-            padding: 20px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-        }
-
-        .thumb-img{
-            width: 100%;
-            border-radius: 16px;
-            object-fit: cover;
-            max-height: 420px;
-            background: #f3f4f6;
-        }
-
-        .result-card{
-            background: #fff;
-            border-radius: 18px;
-            padding: 16px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.07);
-            height: 100%;
-        }
-
-        .result-card img{
-            width: 100%;
-            height: 230px;
-            object-fit: cover;
-            border-radius: 14px;
-            background: #f3f4f6;
-        }
-
-        .badge-soft{
-            background: #eef2ff;
-            color: #1d4ed8;
-            border-radius: 999px;
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: 700;
-            display: inline-block;
-        }
-
-        .form-label{
-            font-weight: 700;
-            color: #111827;
-            margin-bottom: 6px;
-        }
-
-        .action-btn{
-            border: none;
-            border-radius: 14px;
-            padding: 12px 16px;
-            font-weight: 700;
-            width: 100%;
-        }
-
-        .search-btn{
-            background: #2563eb;
-            color: #fff;
-        }
-
-        .add-btn{
-            background: #059669;
-            color: #fff;
-        }
-
-        .small-note{
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .meta-line{
-            font-size: 14px;
-            color: #374151;
-            margin-bottom: 6px;
-        }
-
-        .page-title{
-            font-size: 34px;
-            font-weight: 800;
-            color: #111827;
-            margin-bottom: 6px;
-        }
-
-        .page-subtitle{
-            color: #6b7280;
-            margin-bottom: 0;
-        }
-
-        @media (max-width: 767px){
-            .page-title{
-                font-size: 26px;
-            }
-
-            .hero-card,
-            .section-card,
-            .result-card{
-                border-radius: 16px;
-                padding: 16px;
-            }
-
-            .result-card img{
-                height: 200px;
-            }
-        }
+        .card-custom { border-radius: 15px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+        .hero-banner { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; border-radius: 15px; }
+        .match-badge { position: absolute; top: 12px; right: 12px; font-weight: bold; padding: 6px 12px; border-radius: 20px; }
+        
+        /* Details Section Initially Hidden */
+        #details-section { display: none; }
     </style>
 </head>
-<body>
+<body class="bg-light">
 
-    <div class="topbar">
-        <div class="container d-flex flex-wrap align-items-center">
-            <a href="/">Home</a>
-            <a href="/gallery">Gallery</a>
-            <a href="/dashboard">Dashboard</a>
-            <a href="/search-history">Search History</a>
-            <a href="/compare">Compare</a>
-        </div>
-    </div>
-
-    <div class="container py-4 py-md-5">
-
-        <div class="hero-card mb-4">
-            <div class="row align-items-center g-4">
-                <div class="col-lg-7">
-                    <div class="page-title">Design Finder</div>
-                    <p class="page-subtitle">
-                        Camera ya gallery se design upload karo, similar design find karo, ya design database me add karo.
-                    </p>
-                </div>
-                <div class="col-lg-5">
-                    {% if message %}
-                        <div class="alert alert-info mb-0">{{ message }}</div>
-                    {% else %}
-                        <div class="small-note">
-                            Mobile par camera aur gallery dono supported hain.
-                        </div>
-                    {% endif %}
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-palette2 me-2"></i>Design Finder</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navMenu">
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link active" href="/"><i class="bi bi-house-door me-1"></i> Home</a>
+                    <a class="nav-link" href="/gallery"><i class="bi bi-grid-3x3-gap me-1"></i> Gallery</a>
+                    <a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
+                    <a class="nav-link" href="/compare"><i class="bi bi-intersect me-1"></i> Compare</a>
                 </div>
             </div>
         </div>
+    </nav>
 
-        <form method="POST" enctype="multipart/form-data" class="mb-4">
-
-            <div class="section-card mb-4">
-                <h4 class="mb-3">Choose Design Image</h4>
-
-                <div class="upload-box">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <button type="button" class="pick-btn camera-btn" onclick="openCameraInput()">
-                                📷 Open Camera
-                            </button>
-                            <input
-                                type="file"
-                                name="camera_image"
-                                id="cameraInput"
-                                class="hidden-input"
-                                accept="image/*"
-                                capture="environment"
-                                onchange="showSelectedFile(this, 'Camera image selected')"
-                            >
-                        </div>
-
-                        <div class="col-md-6">
-                            <button type="button" class="pick-btn gallery-btn" onclick="openGalleryInput()">
-                                🖼️ Choose from Gallery
-                            </button>
-                            <input
-                                type="file"
-                                name="gallery_image"
-                                id="galleryInput"
-                                class="hidden-input"
-                                accept="image/*"
-                                onchange="showSelectedFile(this, 'Gallery image selected')"
-                            >
-                        </div>
-                    </div>
-
-                    <div id="selectedFileBox" class="selected-file mt-3">
-                        No image selected yet.
-                    </div>
+    <div class="container my-4">
+        
+        <!-- Hero Banner -->
+        <div class="p-4 p-md-5 hero-banner mb-4 shadow-sm text-center text-md-start">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="fw-bold mb-2">Smart Textile Design Finder</h1>
+                    <p class="lead mb-0">Search similar fabric designs using AI image matching or register new designs to your database.</p>
+                </div>
+                <div class="col-md-4 text-center mt-3 mt-md-0 fs-1">
+                    ✨ 👗 🧵
                 </div>
             </div>
+        </div>
 
-            <div class="section-card mb-4">
-                <h4 class="mb-3">Design Details (for Add To Database)</h4>
-
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Fabric</label>
-                        <select name="fabric_select" id="fabricSelect" class="form-select" onchange="toggleFabricCustom()">
-                            <option value="">Select Fabric</option>
-                            {% for fabric in fabric_options %}
-                                <option value="{{ fabric }}">{{ fabric }}</option>
-                            {% endfor %}
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Custom Fabric</label>
-                        <input type="text" name="fabric_custom" id="fabricCustom" class="form-control" placeholder="Enter custom fabric">
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Work Type</label>
-                        <select name="work_type_select" id="workTypeSelect" class="form-select" onchange="toggleWorkTypeCustom()">
-                            <option value="">Select Work Type</option>
-                            {% for item in work_type_options %}
-                                <option value="{{ item }}">{{ item }}</option>
-                            {% endfor %}
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Custom Work Type</label>
-                        <input type="text" name="work_type_custom" id="workTypeCustom" class="form-control" placeholder="Enter custom work type">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label class="form-label">Color</label>
-                        <input type="text" name="color" class="form-control" placeholder="Ex. Red, Blue, Maroon">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label class="form-label">Occasion</label>
-                        <input type="text" name="occasion" class="form-control" placeholder="Ex. Wedding, Party">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label class="form-label">Notes</label>
-                        <input type="text" name="notes" class="form-control" placeholder="Optional notes">
-                    </div>
-                </div>
-            </div>
-
-            <div class="section-card">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <button type="submit" name="action" value="search" class="action-btn search-btn">
-                            Find Similar Design
-                        </button>
-                    </div>
-                    <div class="col-md-6">
-                        <button type="submit" name="action" value="add" class="action-btn add-btn">
-                            Add To Database
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-        </form>
-
-        {% if image_name %}
-            <div class="section-card mb-4">
-                <h4 class="mb-3">Uploaded Image</h4>
-
-                <div class="row g-4 align-items-start">
-                    <div class="col-lg-5">
-                        <img src="/uploads/{{ image_name }}" class="thumb-img" alt="Uploaded Design">
-                    </div>
-
-                    <div class="col-lg-7">
-                        {% if image_size %}
-                            <div class="meta-line"><strong>Image Size:</strong> {{ image_size }}</div>
-                        {% endif %}
-                        {% if dominant_color %}
-                            <div class="meta-line"><strong>Dominant RGB:</strong> {{ dominant_color }}</div>
-                        {% endif %}
-                        {% if color_name %}
-                            <div class="meta-line"><strong>Color Name:</strong> {{ color_name }}</div>
-                        {% endif %}
-                        {% if combination %}
-                            <div class="meta-line"><strong>Suggested Combination:</strong> {{ combination }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+        {% if message %}
+        <div class="alert alert-info alert-dismissible fade show card-custom" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
         {% endif %}
 
-        {% if similar_images %}
-            <div class="section-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="mb-0">Best 3 Similar Designs</h4>
-                    <span class="badge-soft">{{ similar_images|length }} Results</span>
-                </div>
+        <div class="row g-4">
+            <div class="col-lg-12">
+                <div class="card card-custom p-4 bg-white">
+                    <form method="POST" enctype="multipart/form-data" id="designForm">
+                        
+                        <!-- Step 1: Image Upload -->
+                        <div class="mb-4 text-center border p-4 rounded-3 bg-light">
+                            <h5 class="fw-bold mb-3"><i class="bi bi-camera me-2"></i>Select or Capture Design Image</h5>
+                            
+                            <input type="file" name="camera_image" id="camera_image" accept="image/*" capture="environment" class="d-none">
+                            <input type="file" name="gallery_image" id="gallery_image" accept="image/*" class="d-none">
+                            
+                            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                                <button type="button" class="btn btn-outline-dark btn-lg px-4" onclick="document.getElementById('camera_image').click()">
+                                    <i class="bi bi-camera-fill me-2"></i> Open Camera
+                                </button>
+                                <button type="button" class="btn btn-primary btn-lg px-4" onclick="document.getElementById('gallery_image').click()">
+                                    <i class="bi bi-images me-2"></i> Choose from Gallery
+                                </button>
+                            </div>
+                            <div id="file-name-display" class="form-text mt-3 fw-bold text-primary">No image selected yet.</div>
+                        </div>
 
-                <div class="row g-4">
-                    {% for item in similar_images %}
-                        <div class="col-md-6 col-lg-4">
-                            <div class="result-card">
-                                <a href="/design/{{ item.filename }}" style="text-decoration:none; color:inherit;">
-                                    <img src="/database/{{ item.filename }}" alt="Design">
-                                </a>
+                        <!-- Buttons -->
+                        <div class="d-flex gap-3 mb-2">
+                            <button type="submit" name="action" value="search" class="btn btn-primary btn-lg flex-fill shadow-sm py-3">
+                                <i class="bi bi-search me-2"></i> Find Similar Design
+                            </button>
+                            <button type="button" class="btn btn-success btn-lg flex-fill shadow-sm py-3" onclick="openAddForm()">
+                                <i class="bi bi-plus-circle me-2"></i> Add To Database
+                            </button>
+                        </div>
 
-                                <div class="mt-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong>{{ item.design_id }}</strong>
-                                        <span class="badge-soft">{{ item.score }}%</span>
-                                    </div>
+                        <!-- Step 2: Hidden Specification Form (Opens ONLY on clicking 'Add To Database') -->
+                        <div id="details-section" class="border-top pt-4 mt-4">
+                            <h4 class="fw-bold mb-3 text-success"><i class="bi bi-file-earmark-plus me-2"></i>Design Details (for Add To Database)</h4>
+                            
+                            <div class="row g-3">
+                                
+                                <!-- Design Number -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Design Number / ID</label>
+                                    <input type="text" name="design_id" class="form-control" placeholder="Auto-generated if left blank">
+                                </div>
 
-                                    <div class="meta-line"><strong>Fabric:</strong> {{ item.fabric or "-" }}</div>
-                                    <div class="meta-line"><strong>Work Type:</strong> {{ item.work_type or "-" }}</div>
-                                    <div class="meta-line"><strong>Color:</strong> {{ item.color or "-" }}</div>
-                                    <div class="meta-line"><strong>Occasion:</strong> {{ item.occasion or "-" }}</div>
+                                <!-- Fabric: Single 2-in-1 Box (Select + Type) -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Fabric</label>
+                                    <input list="fabric_options" name="fabric" class="form-control" placeholder="Select or type custom fabric...">
+                                    <datalist id="fabric_options">
+                                        <option value="Viscose">
+                                        <option value="Cotton">
+                                        <option value="Georgette">
+                                        <option value="Chiffon">
+                                        <option value="Silk">
+                                        <option value="Linen">
+                                        <option value="Rayon">
+                                        <option value="Crepe">
+                                        <option value="Organza">
+                                        <option value="Net">
+                                    </datalist>
+                                </div>
 
-                                    {% if item.notes %}
-                                        <div class="meta-line"><strong>Notes:</strong> {{ item.notes }}</div>
-                                    {% endif %}
+                                <!-- Work Type: Single 2-in-1 Box (Select + Type) -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Work Type</label>
+                                    <input list="work_options" name="work_type" class="form-control" placeholder="Select or type custom work...">
+                                    <datalist id="work_options">
+                                        <option value="Floral">
+                                        <option value="Butta">
+                                        <option value="Jaal">
+                                        <option value="Border">
+                                        <option value="Pallu">
+                                        <option value="Allover">
+                                        <option value="Embroidery">
+                                        <option value="Printed">
+                                        <option value="Weaving">
+                                        <option value="Traditional">
+                                    </datalist>
+                                </div>
 
-                                    <div class="mt-3">
-                                        <a href="/design/{{ item.filename }}" class="btn btn-outline-dark w-100">
-                                            View Details
-                                        </a>
-                                    </div>
+                                <!-- Stitch Box -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Stitch</label>
+                                    <select name="stitch" class="form-select">
+                                        <option value="">Select Stitch Type</option>
+                                        <option value="Unstitched">Unstitched</option>
+                                        <option value="Semi-Stitched">Semi-Stitched</option>
+                                        <option value="Fully Stitched">Fully Stitched</option>
+                                        <option value="Dress Material">Dress Material</option>
+                                        <option value="Saree">Saree</option>
+                                        <option value="Lehenga">Lehenga</option>
+                                    </select>
+                                </div>
+
+                                <!-- Color -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Color</label>
+                                    <input type="text" name="color" class="form-control" placeholder="Ex. Red, Blue, Maroon">
+                                </div>
+
+                                <!-- Occasion -->
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Occasion</label>
+                                    <input type="text" name="occasion" class="form-control" placeholder="Ex. Wedding, Party">
+                                </div>
+
+                                <!-- Notes -->
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold">Notes</label>
+                                    <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
                                 </div>
                             </div>
+
+                            <!-- Final Save Button -->
+                            <div class="mt-4 text-end">
+                                <button type="submit" name="action" value="add" class="btn btn-success btn-lg px-5 shadow-sm">
+                                    <i class="bi bi-check-circle me-2"></i> Save To Database Now
+                                </button>
+                            </div>
                         </div>
-                    {% endfor %}
+
+                    </form>
                 </div>
             </div>
+        </div>
+
+        <!-- Search Results Grid -->
+        {% if similar_images %}
+        <div class="mt-5">
+            <h3 class="fw-bold mb-4 text-dark"><i class="bi bi-check-circle-fill text-success me-2"></i> Matching Search Results</h3>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for img in similar_images %}
+                <div class="col">
+                    <div class="card h-100 card-custom position-relative bg-white overflow-hidden">
+                        <span class="badge bg-success match-badge shadow-sm"><i class="bi bi-lightning-charge-fill me-1"></i>{{ img.score }}% Match</span>
+                        <img src="{{ img.image_url if img.image_url else url_for('database_file', filename=img.filename) }}" class="card-img-top" alt="Design Result" style="height: 240px; object-fit: cover;">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold text-primary">{{ img.design_id }}</h5>
+                            <hr class="my-2">
+                            <div class="row g-2 fs-6">
+                                <div class="col-6"><strong>Fabric:</strong> {{ img.fabric }}</div>
+                                <div class="col-6"><strong>Work:</strong> {{ img.work_type }}</div>
+                                <div class="col-6"><strong>Stitch:</strong> {{ img.stitch }}</div>
+                                <div class="col-6"><strong>Color:</strong> {{ img.color }}</div>
+                            </div>
+                            {% if img.notes %}
+                            <p class="card-text text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>{{ img.notes }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-white border-0 pb-3">
+                            <a href="/design/{{ img.filename }}" class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-eye me-1"></i> View Details</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
         {% endif %}
 
     </div>
 
     <script>
-        function openCameraInput() {
-            document.getElementById("cameraInput").click();
+        function openAddForm() {
+            const sec = document.getElementById('details-section');
+            sec.style.display = 'block';
+            sec.scrollIntoView({ behavior: 'smooth' });
         }
 
-        function openGalleryInput() {
-            document.getElementById("galleryInput").click();
-        }
+        const camInput = document.getElementById('camera_image');
+        const galInput = document.getElementById('gallery_image');
+        const textDisp = document.getElementById('file-name-display');
 
-        function showSelectedFile(input, sourceLabel) {
-            const fileBox = document.getElementById("selectedFileBox");
-            const cameraInput = document.getElementById("cameraInput");
-            const galleryInput = document.getElementById("galleryInput");
-
-            if (input.files && input.files[0]) {
-                fileBox.innerHTML = "<strong>" + sourceLabel + ":</strong> " + input.files[0].name;
-
-                // Ensure only one source remains selected at a time
-                if (input.id === "cameraInput") {
-                    galleryInput.value = "";
-                } else if (input.id === "galleryInput") {
-                    cameraInput.value = "";
-                }
-            } else {
-                fileBox.innerHTML = "No image selected yet.";
-            }
-        }
-
-        function toggleFabricCustom() {
-            const select = document.getElementById("fabricSelect");
-            const custom = document.getElementById("fabricCustom");
-
-            if (select.value === "Other") {
-                custom.disabled = false;
-                custom.placeholder = "Enter custom fabric";
-            } else {
-                custom.disabled = false;
-            }
-        }
-
-        function toggleWorkTypeCustom() {
-            const select = document.getElementById("workTypeSelect");
-            const custom = document.getElementById("workTypeCustom");
-
-            if (select.value === "Other") {
-                custom.disabled = false;
-                custom.placeholder = "Enter custom work type";
-            } else {
-                custom.disabled = false;
-            }
-        }
+        camInput.addEventListener('change', function(){
+            if(this.files && this.files[0]) textDisp.innerHTML = "<i class='bi bi-check-lg text-success me-1'></i> Photo Captured: <strong>" + this.files[0].name + "</strong>";
+        });
+        galInput.addEventListener('change', function(){
+            if(this.files && this.files[0]) textDisp.innerHTML = "<i class='bi bi-check-lg text-success me-1'></i> Image Selected: <strong>" + this.files[0].name + "</strong>";
+        });
     </script>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
