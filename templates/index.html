@@ -17,7 +17,7 @@
 </head>
 <body class="bg-light">
 
-    <!-- Navbar -->
+    <!-- Navbar (Compare Option Removed) -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
         <div class="container">
             <a class="navbar-brand fw-bold" href="/"><i class="bi bi-palette2 me-2"></i>Design Finder</a>
@@ -29,7 +29,6 @@
                     <a class="nav-link active" href="/"><i class="bi bi-house-door me-1"></i> Home</a>
                     <a class="nav-link" href="/gallery"><i class="bi bi-grid-3x3-gap me-1"></i> Gallery</a>
                     <a class="nav-link" href="/dashboard"><i class="bi bi-speedometer2 me-1"></i> Dashboard</a>
-                    <a class="nav-link" href="/compare"><i class="bi bi-intersect me-1"></i> Compare</a>
                 </div>
             </div>
         </div>
@@ -90,16 +89,16 @@
                             </button>
                         </div>
 
-                        <!-- Step 2: Hidden Specification Form (Opens ONLY on clicking 'Add To Database') -->
+                        <!-- Step 2: Hidden Details Section (Shows ONLY on clicking 'Add To Database') -->
                         <div id="details-section" class="border-top pt-4 mt-4">
                             <h4 class="fw-bold mb-3 text-success"><i class="bi bi-file-earmark-plus me-2"></i>Design Details (for Add To Database)</h4>
                             
                             <div class="row g-3">
                                 
-                                <!-- Design Number -->
+                                <!-- Design ID (Allows Custom Text + Number, e.g. "123 shubham") -->
                                 <div class="col-md-4">
                                     <label class="form-label fw-bold">Design Number / ID</label>
-                                    <input type="text" name="design_id" class="form-control" placeholder="Auto-generated if left blank">
+                                    <input type="text" name="design_id" class="form-control" placeholder="e.g. 123 shubham" required>
                                 </div>
 
                                 <!-- Fabric: Single 2-in-1 Box (Select + Type) -->
@@ -138,18 +137,10 @@
                                     </datalist>
                                 </div>
 
-                                <!-- Stitch Box -->
+                                <!-- Stitch Count (Input Box for Stitches, e.g. 100000) -->
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Stitch</label>
-                                    <select name="stitch" class="form-select">
-                                        <option value="">Select Stitch Type</option>
-                                        <option value="Unstitched">Unstitched</option>
-                                        <option value="Semi-Stitched">Semi-Stitched</option>
-                                        <option value="Fully Stitched">Fully Stitched</option>
-                                        <option value="Dress Material">Dress Material</option>
-                                        <option value="Saree">Saree</option>
-                                        <option value="Lehenga">Lehenga</option>
-                                    </select>
+                                    <label class="form-label fw-bold">Stitch Count</label>
+                                    <input type="number" name="stitch" class="form-control" placeholder="Enter stitch count e.g. 100000">
                                 </div>
 
                                 <!-- Color -->
