@@ -3,74 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Design</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body{ background:#f5f7fb; }
-        .main-card{ border:0; border-radius:18px; }
-    </style>
+    <title>Edit Design - Design Finder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 </head>
-<body>
+<body class="bg-light">
 
-<div class="container py-4">
-    <div class="card main-card shadow-sm">
-        <div class="card-body p-4">
-            <h2 class="fw-bold mb-4">Edit Design</h2>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-palette2 me-2"></i>Design Finder</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/gallery"><i class="bi bi-arrow-left me-1"></i> Back to Gallery</a>
+            </div>
+        </div>
+    </nav>
 
-            <div class="mb-3">
-                <img src="/database/{{ filename }}" class="img-fluid rounded shadow-sm" style="max-width:300px;" alt="{{ filename }}">
+    <div class="container my-4" style="max-width: 700px;">
+        <div class="card p-4 shadow-sm border-0 rounded-4 bg-white">
+            <h3 class="fw-bold mb-4 text-primary"><i class="bi bi-pencil-square me-2"></i> Edit Specifications ({{ details.design_id }})</h3>
+
+            <div class="text-center mb-4">
+                <img src="{{ details.image_url if details.image_url else url_for('database_file', filename=details.filename) }}" class="img-fluid rounded-3 shadow-sm" style="max-height: 250px;">
             </div>
 
             <form method="POST">
                 <div class="row g-3">
+                    
+                    <!-- Single Fabric Dropdown -->
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Fabric</label>
-                        <select class="form-select" name="fabric_select">
-                            <option value="">Select Fabric</option>
-                            {% for item in fabric_options %}
-                                <option value="{{ item }}" {% if selected_fabric == item %}selected{% endif %}>{{ item }}</option>
+                        <label class="form-label fw-bold">Fabric Type</label>
+                        <select name="fabric_select" id="fabric_select" class="form-select" onchange="toggleCustomField('fabric')">
+                            <option value="">-- Choose Fabric --</option>
+                            {% for fab in fabric_options %}
+                            <option value="{{ fab }}" {% if details.fabric == fab %}selected{% endif %}>{{ fab }}</option>
                             {% endfor %}
-                            <option value="Other" {% if selected_fabric == "Other" %}selected{% endif %}>Other</option>
+                            <option value="Other" {% if details.fabric and details.fabric not in fabric_options %}selected{% endif %}>➕ Other (Type Custom)</option>
                         </select>
-                        <input type="text" name="fabric_custom" class="form-control mt-2" value="{{ custom_fabric }}" placeholder="Custom fabric">
+                        <input type="text" name="fabric_custom" id="fabric_custom" class="form-control mt-2 {% if details.fabric in fabric_options or not details.fabric %}d-none{% endif %}" value="{{ details.fabric if details.fabric not in fabric_options else '' }}" placeholder="Enter custom fabric...">
+                    </div>
+
+                    <!-- Single Work Type Dropdown -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Work Type</label>
+                        <select name="work_type_select" id="work_type_select" class="form-select" onchange="toggleCustomField('work_type')">
+                            <option value="">-- Choose Work Type --</option>
+                            {% for wt in work_type_options %}
+                            <option value="{{ wt }}" {% if details.work_type == wt %}selected{% endif %}>{{ wt }}</option>
+                            {% endfor %}
+                            <option value="Other" {% if details.work_type and details.work_type not in work_type_options %}selected{% endif %}>➕ Other (Type Custom)</option>
+                        </select>
+                        <input type="text" name="work_type_custom" id="work_type_custom" class="form-control mt-2 {% if details.work_type in work_type_options or not details.work_type %}d-none{% endif %}" value="{{ details.work_type if details.work_type not in work_type_options else '' }}" placeholder="Enter custom work...">
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Work Type</label>
-                        <select class="form-select" name="work_type_select">
-                            <option value="">Select Work Type</option>
-                            {% for item in work_type_options %}
-                                <option value="{{ item }}" {% if selected_work_type == item %}selected{% endif %}>{{ item }}</option>
+                        <label class="form-label fw-bold">Stitch Type</label>
+                        <select name="stitch" class="form-select">
+                            <option value="">-- Choose Stitch --</option>
+                            {% for st in stitch_options %}
+                            <option value="{{ st }}" {% if details.stitch == st %}selected{% endif %}>{{ st }}</option>
                             {% endfor %}
-                            <option value="Other" {% if selected_work_type == "Other" %}selected{% endif %}>Other</option>
                         </select>
-                        <input type="text" name="work_type_custom" class="form-control mt-2" value="{{ custom_work_type }}" placeholder="Custom work type">
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Color</label>
-                        <input type="text" name="color" class="form-control" value="{{ details.color }}">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Color</label>
+                        <input type="text" name="color" class="form-control" value="{{ details.color or '' }}">
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Occasion</label>
-                        <input type="text" name="occasion" class="form-control" value="{{ details.occasion }}">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Occasion</label>
+                        <input type="text" name="occasion" class="form-control" value="{{ details.occasion or '' }}">
                     </div>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Notes</label>
-                        <input type="text" name="notes" class="form-control" value="{{ details.notes }}">
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Notes</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ details.notes or '' }}</textarea>
                     </div>
                 </div>
 
-                <div class="mt-4 d-flex gap-2 flex-wrap">
-                    <button type="submit" class="btn btn-success">Save Changes</button>
-                    <a href="/gallery" class="btn btn-outline-secondary">Cancel</a>
+                <div class="d-flex gap-2 mt-4">
+                    <a href="/gallery" class="btn btn-outline-secondary flex-fill">Cancel</a>
+                    <button type="submit" class="btn btn-primary flex-fill"><i class="bi bi-save me-1"></i> Save Changes</button>
                 </div>
             </form>
         </div>
     </div>
-</div>
 
+    <script>
+        function toggleCustomField(type) {
+            const selectElem = document.getElementById(type + '_select');
+            const customElem = document.getElementById(type + '_custom');
+            if (selectElem.value === 'Other') {
+                customElem.classList.remove('d-none');
+            } else {
+                customElem.classList.add('d-none');
+                customElem.value = '';
+            }
+        }
+    </script>
 </body>
 </html>
